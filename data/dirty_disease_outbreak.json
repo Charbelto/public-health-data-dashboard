@@ -1,0 +1,93 @@
+[
+  {
+    "country": "United Kingdom",
+    "disease": "Influenza",
+    "year": 2020,
+    "confirmed_cases": 45000,
+    "deaths": 1200,
+    "recovered": 43500,
+    "active_cases": 300
+  },
+  {
+    "country": "United Kingdom",
+    "disease": "Influenza",
+    "year": 2020,
+    "confirmed_cases": 45000,
+    "deaths": 1200,
+    "recovered": 43500,
+    "active_cases": 300
+  },
+  {
+    "country": " united kingdom ",
+    "disease": "influenza",
+    "year": "2021",
+    "confirmed_cases": "38000",
+    "deaths": null,
+    "recovered": 36800,
+    "active_cases": 250
+  },
+  {
+    "country": "United States",
+    "disease": "Influenza",
+    "year": 2020,
+    "confirmed_cases": 180000,
+    "deaths": 4500,
+    "recovered": 174000,
+    "active_cases": 1500
+  },
+  {
+    "country": "USA",
+    "disease": "Influenza",
+    "year": 2021,
+    "confirmed_cases": 165000,
+    "deaths": null,
+    "recovered": 160000,
+    "active_cases": 1200
+  },
+  {
+    "country": "France",
+    "disease": "Measles",
+    "year": 2020,
+    "confirmed_cases": 2800,
+    "deaths": 45,
+    "recovered": 2740,
+    "active_cases": 15
+  },
+  {
+    "country": "Germany",
+    "disease": "Measles",
+    "year": 2020,
+    "confirmed_cases": -100,
+    "deaths": 52,
+    "recovered": 3130,
+    "active_cases": 18
+  },
+  {
+    "country": "Canada",
+    "disease": "Tuberculosis",
+    "year": 2020,
+    "confirmed_cases": 1600,
+    "deaths": 180,
+    "recovered": 1400,
+    "active_cases": null
+  },
+  {
+    "country": "Canada",
+    "disease": "TB",
+    "year": 2021,
+    "confirmed_cases": 1450,
+    "deaths": 160,
+    "recovered": 1270,
+    "active_cases": 20
+  },
+  {
+    "country": "Brazil",
+    "disease": "Yellow Fever",
+    "year": 2020,
+    "confirmed_cases": 10000000,
+    "deaths": 999999,
+    "recovered": 5000,
+    "active_cases": 500
+  }
+]
+

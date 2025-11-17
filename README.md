@@ -19,9 +19,19 @@ This project is a command-line Python tool to explore public health datasets
 - **Database Storage**: Store data in SQLite database for efficient querying
 - **Data Retrieval**: Query and filter data from database with SQL support
 
+### ✅ Completed - Step 2: Data Cleaning & Structuring
+
+- **Missing Value Detection**: Identify and summarize missing data
+- **Missing Value Handling**: 5 strategies (drop, mean, median, constant, forward/backward fill)
+- **Duplicate Detection and Removal**: Find and remove duplicate records
+- **Type Conversion**: Convert strings to datetime and numeric types
+- **Data Validation**: Range checking and invalid data detection
+- **Outlier Detection**: IQR and Z-score methods for anomaly identification
+- **Text Standardization**: Clean and normalize text data
+- **DataCleaner Class**: Fluent interface for chaining cleaning operations
+
 ### 🔄 Planned Features
 
-- Data cleaning and structuring (handle missing values, type conversions)
 - Filtering by user-selected criteria (country, date range, age group)
 - Summary statistics (mean, min, max, counts, trends)
 - Command-line interface (CLI) for user interaction
@@ -34,17 +44,28 @@ This project is a command-line Python tool to explore public health datasets
 
 ```
 public-health-data-dashboard/
-├── data/                           # Data directory
-│   ├── sample_vaccination_data.csv # Sample vaccination dataset
-│   ├── sample_disease_outbreak.json# Sample outbreak dataset
-│   └── health_data.db             # SQLite database (generated)
-├── src/                           # Source code
-│   ├── main.py                    # Core data loading functions
-│   └── data_loader.py             # DataLoader class and demonstration
-├── tests/                         # Test suite (TDD approach)
-│   └── test_main.py               # 21 comprehensive tests
-├── requirements.txt               # Python dependencies
-└── README.md                      # This file
+├── data/                                # Data directory
+│   ├── sample_vaccination_data.csv      # Clean sample vaccination dataset
+│   ├── sample_disease_outbreak.json     # Clean sample outbreak dataset
+│   ├── dirty_vaccination_data.csv       # Dirty data for cleaning demo
+│   ├── dirty_disease_outbreak.json      # Dirty data for cleaning demo
+│   ├── health_data.db                   # SQLite database (generated)
+│   └── health_data_cleaned.db           # Cleaned data database (generated)
+├── docs/                                # Documentation
+│   ├── API_REFERENCE.md                 # Function documentation
+│   └── DATA_FLOW_DIAGRAM.md             # Architecture diagrams
+├── src/                                 # Source code
+│   ├── main.py                          # Core data loading functions
+│   ├── data_loader.py                   # DataLoader class and demonstration
+│   ├── cleaning.py                      # Data cleaning functions
+│   └── cleaning_demo.py                 # Cleaning demonstration script
+├── tests/                               # Test suite (TDD approach)
+│   ├── test_main.py                     # 21 data loading tests
+│   └── test_cleaning.py                 # 28 data cleaning tests
+├── requirements.txt                     # Python dependencies
+├── README.md                            # This file
+├── STEP1_SUMMARY.md                     # Step 1 implementation report
+└── STEP2_SUMMARY.md                     # Step 2 implementation report
 ```
 
 ## Installation
@@ -73,10 +94,14 @@ public-health-data-dashboard/
    - pytest >= 7.4.0
    - requests >= 2.31.0
    - pytest-mock >= 3.11.0
+   - scipy >= 1.11.0
+   - numpy >= 1.24.0
 
 ## Usage
 
-### Running the Demonstration
+### Running the Demonstrations
+
+**Step 1: Data Loading Demo**
 
 To see all data loading functionality in action:
 
@@ -95,26 +120,54 @@ This will:
 4. Query and display data from the database
 5. Show a summary of all loaded data
 
+**Step 2: Data Cleaning Demo**
+
+To see all data cleaning functionality in action:
+
+```bash
+# On Windows PowerShell:
+$env:PYTHONPATH="$PWD"; python src/cleaning_demo.py
+
+# On Linux/Mac:
+export PYTHONPATH=$PWD && python src/cleaning_demo.py
+```
+
+This will:
+1. Demonstrate missing value detection and handling
+2. Show duplicate detection and removal
+3. Perform type conversions (datetime, numeric)
+4. Validate data ranges and detect outliers
+5. Standardize text data
+6. Show chained cleaning operations with DataCleaner class
+7. Generate cleaning reports
+8. Save cleaned data to database
+
 ### Running Tests
 
-Run the comprehensive test suite (21 tests covering all functionality):
+**Run All Tests**
 
 ```bash
+# Run all tests (49 tests total)
+pytest tests/ -v
+
+# Run data loading tests only (21 tests)
 pytest tests/test_main.py -v
+
+# Run data cleaning tests only (28 tests)
+pytest tests/test_cleaning.py -v
 ```
 
-For test coverage report:
+**Test Coverage Report**
 
 ```bash
-pytest tests/test_main.py -v --cov=src --cov-report=html
+pytest tests/ -v --cov=src --cov-report=html
 ```
 
-### Using the Data Loading Functions
+### Using the Core Functions
 
-Here's a quick example of how to use the core functions:
+**Data Loading (Step 1)**
 
 ```python
-from pathlib import Path
 from src.main import (
     load_dataset,
     load_json_dataset,
@@ -139,6 +192,29 @@ result = read_from_database(
 )
 ```
 
+**Data Cleaning (Step 2)**
+
+```python
+from src.cleaning import DataCleaner
+
+# Load dirty data
+df = load_dataset("data/dirty_vaccination_data.csv")
+
+# Apply comprehensive cleaning
+cleaner = DataCleaner(df)
+clean_df = (cleaner
+            .remove_duplicates()
+            .handle_missing(strategy='drop')
+            .convert_column_type('year', 'numeric', errors='coerce')
+            .standardize_column('country', strip=True)
+            .filter_by_range('vaccination_rate', 0, 1)
+            .get_cleaned_data())
+
+# Get cleaning report
+report = cleaner.get_cleaning_report()
+print(f"Removed {report['rows_removed']} invalid records")
+```
+
 ## Development Approach
 
 ### Test-Driven Development (TDD)
@@ -147,8 +223,13 @@ This project follows TDD principles:
 
 1. ✅ **Write tests first** - Tests were written before implementation
 2. ✅ **Red-Green-Refactor** - Tests fail initially, then implementation makes them pass
-3. ✅ **Comprehensive coverage** - 21 tests covering normal cases, edge cases, and error handling
+3. ✅ **Comprehensive coverage** - 49 tests covering normal cases, edge cases, and error handling
 4. ✅ **Automated testing** - All tests can be run with a single pytest command
+
+**Test Statistics:**
+- Step 1 (Data Loading): 21 tests
+- Step 2 (Data Cleaning): 28 tests
+- **Total**: 49 tests, all passing ✅
 
 ### Software Engineering Best Practices
 
@@ -223,9 +304,10 @@ This project is for educational purposes as part of a university coursework assi
 - Developed following TDD and software engineering best practices
 - Version control with Git
 
-## Next Steps
+## Implementation Progress
 
-- **Step 2**: Data Cleaning & Structuring
-- **Step 3**: Filtering and Summary Views
-- **Step 4**: Presentation Layer (CLI)
-- **Step 5**: Extension Features (CRUD, Export, Logging)
+- ✅ **Step 1**: Data Access & Loading - **COMPLETE**
+- ✅ **Step 2**: Data Cleaning & Structuring - **COMPLETE**
+- 🔄 **Step 3**: Filtering and Summary Views - **IN PROGRESS**
+- ⏳ **Step 4**: Presentation Layer (CLI)
+- ⏳ **Step 5**: Extension Features (CRUD, Export, Logging)

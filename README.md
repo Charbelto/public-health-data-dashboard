@@ -42,13 +42,23 @@ This project is a command-line Python tool to explore public health datasets
 - **Moving Averages**: Calculate rolling averages for time series
 - **DataAnalyzer Class**: Fluent interface for chaining analysis operations
 
+### ✅ Completed - Step 4: Presentation Layer (CLI)
+
+- **Interactive Dashboard**: Menu-driven command-line interface
+- **Data Loading Menu**: Load CSV, JSON, or database with file browser
+- **View Data Menu**: Display data, info, columns, and statistics
+- **Filter Data Menu**: Interactive filtering with multiple criteria
+- **Analyze Data Menu**: Calculate statistics, group data, analyze trends
+- **Visualize Data Menu**: Create bar charts, line charts, grouped charts
+- **Clean Data Menu**: Detect issues, handle missing values, remove duplicates
+- **Export Data Menu**: Export to CSV or database
+- **Session Management**: Track loaded data and applied filters
+- **Error Handling**: Comprehensive error messages and validation
+
 ### 🔄 Planned Features
 
-- Command-line interface (CLI) for user interaction
-- Data visualizations with Matplotlib
 - CRUD operations on database
-- Export filtered data as CSV
-- Activity logging
+- Activity logging to file
 
 ## Project Structure
 
@@ -109,48 +119,46 @@ public-health-data-dashboard/
 
 ## Usage
 
-### Running the Demonstrations
+### Running the Application
+
+**Interactive Dashboard (Step 4) - Main Application**
+
+To run the interactive command-line dashboard:
+
+```bash
+# On Windows PowerShell:
+$env:PYTHONPATH="$PWD"; python src/dashboard.py
+
+# On Linux/Mac:
+export PYTHONPATH=$PWD && python src/dashboard.py
+```
+
+Features:
+- Load data from multiple sources (CSV, JSON, database)
+- View and explore data interactively
+- Filter data by various criteria
+- Calculate statistics and analyze trends
+- Create visualizations (charts)
+- Clean data and detect quality issues
+- Export results to CSV or database
 
 **Step 1: Data Loading Demo**
 
-To see all data loading functionality in action:
-
 ```bash
-# On Windows PowerShell:
 $env:PYTHONPATH="$PWD"; python src/data_loader.py
-
-# On Linux/Mac:
-export PYTHONPATH=$PWD && python src/data_loader.py
 ```
-
-This will:
-1. Load vaccination data from CSV
-2. Load outbreak data from JSON
-3. Store both datasets in SQLite database
-4. Query and display data from the database
-5. Show a summary of all loaded data
 
 **Step 2: Data Cleaning Demo**
 
-To see all data cleaning functionality in action:
-
 ```bash
-# On Windows PowerShell:
 $env:PYTHONPATH="$PWD"; python src/cleaning_demo.py
-
-# On Linux/Mac:
-export PYTHONPATH=$PWD && python src/cleaning_demo.py
 ```
 
-This will:
-1. Demonstrate missing value detection and handling
-2. Show duplicate detection and removal
-3. Perform type conversions (datetime, numeric)
-4. Validate data ranges and detect outliers
-5. Standardize text data
-6. Show chained cleaning operations with DataCleaner class
-7. Generate cleaning reports
-8. Save cleaned data to database
+**Step 3: Analysis Demo**
+
+```bash
+$env:PYTHONPATH="$PWD"; python src/analysis_demo.py
+```
 
 ### Running Tests
 
@@ -320,5 +328,5 @@ This project is for educational purposes as part of a university coursework assi
 - ✅ **Step 1**: Data Access & Loading - **COMPLETE** (21 tests)
 - ✅ **Step 2**: Data Cleaning & Structuring - **COMPLETE** (28 tests)
 - ✅ **Step 3**: Filtering and Summary Views - **COMPLETE** (29 tests)
-- ⏳ **Step 4**: Presentation Layer (CLI)
-- ⏳ **Step 5**: Extension Features (CRUD, Export, Logging)
+- ✅ **Step 4**: Presentation Layer (CLI) - **COMPLETE**
+- ⏳ **Step 5**: Extension Features (CRUD, Activity Logging)

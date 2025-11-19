@@ -6,34 +6,37 @@ Step 3: Filtering and Summary Views
 """
 
 from pathlib import Path
-from datetime import datetime, timedelta
 import pandas as pd
 import pytest
 import numpy as np
+from datetime import datetime, timedelta
 
 from src.analysis import (
     filter_by_column,
     filter_by_date_range,
-    filter_by_multiple_conditions,
-    calculate_statistics,
-    calculate_summary,
-    analyze_trends,
+    filter_by_numeric_range,
+    filter_by_multiple_criteria,
+    calculate_summary_stats,
+    get_column_statistics,
     group_and_aggregate,
+    calculate_trends,
+    calculate_growth_rate,
     calculate_moving_average,
-    compare_groups,
     DataAnalyzer
 )
 
 
 # ==============================================================================
-# Tests for Basic Filtering
+# Tests for Filtering Functions
 # ==============================================================================
 
 def test_filter_by_column_single_value() -> None:
-    """Test filtering by a single column value."""
+    """
+    Test filtering DataFrame by single column value.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'USA', 'France', 'UK', 'USA'],
-        'cases': [100, 200, 300, 150, 250]
+        'country': ['UK', 'USA', 'France', 'UK', 'Germany'],
+        'cases': [100, 200, 150, 120, 180]
     })
     
     result = filter_by_column(df, 'country', 'UK')
@@ -43,33 +46,38 @@ def test_filter_by_column_single_value() -> None:
 
 
 def test_filter_by_column_multiple_values() -> None:
-    """Test filtering by multiple column values."""
+    """
+    Test filtering DataFrame by multiple column values.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'USA', 'France', 'Germany'],
-        'cases': [100, 200, 300, 400]
+        'country': ['UK', 'USA', 'France', 'UK', 'Germany'],
+        'cases': [100, 200, 150, 120, 180]
     })
     
     result = filter_by_column(df, 'country', ['UK', 'USA'])
     
-    assert len(result) == 2
-    assert set(result['country']) == {'UK', 'USA'}
+    assert len(result) == 3
+    assert set(result['country'].unique()) == {'UK', 'USA'}
 
 
-def test_filter_by_column_returns_empty_for_no_match() -> None:
-    """Test that filtering returns empty DataFrame when no matches."""
+def test_filter_by_column_no_matches() -> None:
+    """
+    Test filtering with no matching values returns empty DataFrame.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'USA'],
-        'cases': [100, 200]
+        'country': ['UK', 'USA', 'France'],
+        'cases': [100, 200, 150]
     })
     
-    result = filter_by_column(df, 'country', 'Japan')
+    result = filter_by_column(df, 'country', 'Canada')
     
     assert len(result) == 0
-    assert list(result.columns) == list(df.columns)
 
 
 def test_filter_by_date_range() -> None:
-    """Test filtering by date range."""
+    """
+    Test filtering DataFrame by date range.
+    """
     df = pd.DataFrame({
         'date': pd.date_range('2020-01-01', periods=10, freq='D'),
         'cases': range(100, 110)
@@ -80,28 +88,32 @@ def test_filter_by_date_range() -> None:
     
     result = filter_by_date_range(df, 'date', start_date, end_date)
     
-    assert len(result) == 5  # Days 3-7 inclusive
-    assert result['date'].min() >= pd.Timestamp(start_date)
-    assert result['date'].max() <= pd.Timestamp(end_date)
+    assert len(result) == 5
+    assert result['date'].min() >= start_date
+    assert result['date'].max() <= end_date
 
 
-def test_filter_by_date_range_only_start() -> None:
-    """Test filtering with only start date."""
+def test_filter_by_date_range_start_only() -> None:
+    """
+    Test filtering with only start date.
+    """
     df = pd.DataFrame({
         'date': pd.date_range('2020-01-01', periods=10, freq='D'),
         'cases': range(100, 110)
     })
     
-    start_date = datetime(2020, 1, 5)
+    start_date = datetime(2020, 1, 6)
     
     result = filter_by_date_range(df, 'date', start_date=start_date)
     
-    assert len(result) == 6  # Days 5-10
-    assert result['date'].min() >= pd.Timestamp(start_date)
+    assert len(result) == 5
+    assert result['date'].min() >= start_date
 
 
-def test_filter_by_date_range_only_end() -> None:
-    """Test filtering with only end date."""
+def test_filter_by_date_range_end_only() -> None:
+    """
+    Test filtering with only end date.
+    """
     df = pd.DataFrame({
         'date': pd.date_range('2020-01-01', periods=10, freq='D'),
         'cases': range(100, 110)
@@ -111,239 +123,316 @@ def test_filter_by_date_range_only_end() -> None:
     
     result = filter_by_date_range(df, 'date', end_date=end_date)
     
-    assert len(result) == 5  # Days 1-5
-    assert result['date'].max() <= pd.Timestamp(end_date)
+    assert len(result) == 5
+    assert result['date'].max() <= end_date
 
 
-def test_filter_by_multiple_conditions() -> None:
-    """Test filtering with multiple conditions."""
+def test_filter_by_numeric_range() -> None:
+    """
+    Test filtering DataFrame by numeric range.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'USA', 'UK', 'USA', 'France'],
-        'year': [2020, 2020, 2021, 2021, 2020],
-        'cases': [100, 200, 150, 250, 300]
+        'country': ['UK', 'USA', 'France', 'Germany', 'Canada'],
+        'cases': [100, 200, 150, 80, 250]
     })
     
-    conditions = {
-        'country': 'UK',
-        'year': 2021
+    result = filter_by_numeric_range(df, 'cases', min_value=100, max_value=200)
+    
+    assert len(result) == 3
+    assert result['cases'].min() >= 100
+    assert result['cases'].max() <= 200
+
+
+def test_filter_by_numeric_range_min_only() -> None:
+    """
+    Test filtering with only minimum value.
+    """
+    df = pd.DataFrame({
+        'cases': [100, 200, 150, 80, 250]
+    })
+    
+    result = filter_by_numeric_range(df, 'cases', min_value=150)
+    
+    assert len(result) == 3
+    assert result['cases'].min() >= 150
+
+
+def test_filter_by_numeric_range_max_only() -> None:
+    """
+    Test filtering with only maximum value.
+    """
+    df = pd.DataFrame({
+        'cases': [100, 200, 150, 80, 250]
+    })
+    
+    result = filter_by_numeric_range(df, 'cases', max_value=150)
+    
+    assert len(result) == 3
+    assert result['cases'].max() <= 150
+
+
+def test_filter_by_multiple_criteria() -> None:
+    """
+    Test filtering by multiple criteria simultaneously.
+    """
+    df = pd.DataFrame({
+        'country': ['UK', 'USA', 'France', 'UK', 'Germany'],
+        'year': [2020, 2020, 2021, 2021, 2020],
+        'cases': [100, 200, 150, 120, 180]
+    })
+    
+    criteria = {
+        'country': ['UK', 'USA'],
+        'year': 2020
     }
     
-    result = filter_by_multiple_conditions(df, conditions)
+    result = filter_by_multiple_criteria(df, criteria)
     
-    assert len(result) == 1
-    assert result['country'].iloc[0] == 'UK'
-    assert result['year'].iloc[0] == 2021
+    assert len(result) == 2
+    assert all(result['country'].isin(['UK', 'USA']))
+    assert all(result['year'] == 2020)
 
 
 # ==============================================================================
 # Tests for Summary Statistics
 # ==============================================================================
 
-def test_calculate_statistics_all_metrics() -> None:
-    """Test calculating all statistics for a column."""
+def test_calculate_summary_stats_single_column() -> None:
+    """
+    Test calculating summary statistics for a single column.
+    """
     df = pd.DataFrame({
-        'cases': [100, 150, 200, 250, 300]
+        'cases': [100, 200, 150, 120, 180]
     })
     
-    stats = calculate_statistics(df, 'cases')
-    
-    assert stats['mean'] == 200.0
-    assert stats['median'] == 200.0
-    assert stats['min'] == 100
-    assert stats['max'] == 300
-    assert stats['sum'] == 1000
-    assert stats['count'] == 5
-    assert 'std' in stats
-
-
-def test_calculate_statistics_specific_metrics() -> None:
-    """Test calculating specific statistics."""
-    df = pd.DataFrame({
-        'cases': [100, 200, 300]
-    })
-    
-    stats = calculate_statistics(df, 'cases', metrics=['mean', 'max'])
+    stats = calculate_summary_stats(df, 'cases')
     
     assert 'mean' in stats
+    assert 'median' in stats
+    assert 'min' in stats
     assert 'max' in stats
-    assert 'min' not in stats
-    assert 'median' not in stats
+    assert 'count' in stats
+    assert 'sum' in stats
+    assert 'std' in stats
+    
+    assert stats['mean'] == 150.0
+    assert stats['min'] == 100
+    assert stats['max'] == 200
+    assert stats['count'] == 5
+    assert stats['sum'] == 750
 
 
-def test_calculate_summary_multiple_columns() -> None:
-    """Test calculating summary for multiple columns."""
+def test_calculate_summary_stats_with_missing_values() -> None:
+    """
+    Test summary statistics handle missing values correctly.
+    """
     df = pd.DataFrame({
-        'cases': [100, 200, 300],
-        'deaths': [10, 20, 30]
+        'cases': [100, 200, None, 120, 180]
     })
     
-    summary = calculate_summary(df, ['cases', 'deaths'])
+    stats = calculate_summary_stats(df, 'cases')
     
-    assert 'cases' in summary
-    assert 'deaths' in summary
-    assert summary['cases']['mean'] == 200.0
-    assert summary['deaths']['sum'] == 60
+    assert stats['count'] == 4  # Only non-null values
+    assert stats['mean'] == 150.0
 
 
-def test_calculate_summary_handles_missing_values() -> None:
-    """Test that summary handles missing values correctly."""
+def test_get_column_statistics_all_numeric() -> None:
+    """
+    Test getting statistics for all numeric columns.
+    """
     df = pd.DataFrame({
-        'cases': [100, None, 300, 400]
+        'cases': [100, 200, 150],
+        'deaths': [10, 20, 15],
+        'country': ['UK', 'USA', 'France']
     })
     
-    summary = calculate_summary(df, ['cases'])
+    stats = get_column_statistics(df)
     
-    assert summary['cases']['count'] == 3  # Excludes NaN
-    assert summary['cases']['mean'] == pytest.approx(266.67, rel=0.01)
+    assert 'cases' in stats
+    assert 'deaths' in stats
+    assert 'country' not in stats  # Non-numeric column excluded
 
 
-# ==============================================================================
-# Tests for Trend Analysis
-# ==============================================================================
-
-def test_analyze_trends_over_time() -> None:
-    """Test analyzing trends over time."""
+def test_get_column_statistics_specific_columns() -> None:
+    """
+    Test getting statistics for specific columns only.
+    """
     df = pd.DataFrame({
-        'date': pd.date_range('2020-01-01', periods=5, freq='D'),
-        'cases': [100, 120, 140, 160, 180]
+        'cases': [100, 200, 150],
+        'deaths': [10, 20, 15],
+        'recovered': [80, 170, 130]
     })
     
-    trends = analyze_trends(df, date_column='date', value_column='cases')
+    stats = get_column_statistics(df, columns=['cases', 'deaths'])
     
-    assert 'total' in trends
-    assert 'average' in trends
-    assert 'growth_rate' in trends
-    assert trends['total'] == 700
-    assert trends['average'] == 140.0
-    assert trends['growth_rate'] > 0  # Positive growth
-
-
-def test_analyze_trends_with_grouping() -> None:
-    """Test trend analysis with grouping by category."""
-    df = pd.DataFrame({
-        'date': pd.date_range('2020-01-01', periods=6, freq='D').tolist() * 2,
-        'country': ['UK'] * 6 + ['USA'] * 6,
-        'cases': [100, 110, 120, 130, 140, 150] + [200, 220, 240, 260, 280, 300]
-    })
-    
-    trends = analyze_trends(
-        df,
-        date_column='date',
-        value_column='cases',
-        group_by='country'
-    )
-    
-    assert 'UK' in trends
-    assert 'USA' in trends
-    assert trends['UK']['total'] == 750
-    assert trends['USA']['total'] == 1500
-
-
-def test_calculate_moving_average() -> None:
-    """Test calculating moving average."""
-    df = pd.DataFrame({
-        'date': pd.date_range('2020-01-01', periods=10, freq='D'),
-        'cases': [100, 110, 105, 115, 120, 125, 130, 135, 140, 145]
-    })
-    
-    result = calculate_moving_average(df, 'cases', window=3)
-    
-    assert 'cases_ma' in result.columns
-    assert pd.notna(result['cases_ma'].iloc[-1])  # Last value should be calculated
-    assert result['cases_ma'].iloc[-1] == pytest.approx(140.0, rel=0.01)
-
-
-def test_calculate_moving_average_custom_column_name() -> None:
-    """Test moving average with custom output column name."""
-    df = pd.DataFrame({
-        'cases': [100, 110, 120, 130, 140]
-    })
-    
-    result = calculate_moving_average(
-        df,
-        'cases',
-        window=2,
-        output_column='rolling_avg'
-    )
-    
-    assert 'rolling_avg' in result.columns
-    assert 'cases_ma' not in result.columns
+    assert 'cases' in stats
+    assert 'deaths' in stats
+    assert 'recovered' not in stats
 
 
 # ==============================================================================
 # Tests for Grouping and Aggregation
 # ==============================================================================
 
-def test_group_and_aggregate_single_column() -> None:
-    """Test grouping by single column with aggregation."""
+def test_group_and_aggregate_single_group() -> None:
+    """
+    Test grouping by single column with aggregation.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'UK', 'USA', 'USA', 'France'],
-        'cases': [100, 150, 200, 250, 300]
+        'country': ['UK', 'USA', 'UK', 'USA', 'France'],
+        'cases': [100, 200, 150, 180, 120]
     })
     
-    result = group_and_aggregate(
-        df,
-        group_by='country',
-        agg_column='cases',
-        agg_func='sum'
-    )
+    result = group_and_aggregate(df, group_by='country', agg_column='cases', agg_func='sum')
     
     assert len(result) == 3
     assert result.loc['UK', 'cases'] == 250
-    assert result.loc['USA', 'cases'] == 450
+    assert result.loc['USA', 'cases'] == 380
 
 
-def test_group_and_aggregate_multiple_columns() -> None:
-    """Test grouping by multiple columns."""
+def test_group_and_aggregate_multiple_groups() -> None:
+    """
+    Test grouping by multiple columns.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'UK', 'USA', 'USA'],
-        'year': [2020, 2021, 2020, 2021],
-        'cases': [100, 150, 200, 250]
+        'country': ['UK', 'USA', 'UK', 'USA', 'UK'],
+        'year': [2020, 2020, 2021, 2021, 2020],
+        'cases': [100, 200, 150, 180, 50]
     })
     
     result = group_and_aggregate(
-        df,
-        group_by=['country', 'year'],
-        agg_column='cases',
-        agg_func='sum'
+        df, 
+        group_by=['country', 'year'], 
+        agg_column='cases', 
+        agg_func='mean'
     )
     
     assert len(result) == 4
+    assert result.loc[('UK', 2020), 'cases'] == 75.0
 
 
 def test_group_and_aggregate_multiple_functions() -> None:
-    """Test aggregation with multiple functions."""
+    """
+    Test multiple aggregation functions simultaneously.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'UK', 'USA', 'USA'],
-        'cases': [100, 150, 200, 250]
+        'country': ['UK', 'USA', 'UK', 'USA'],
+        'cases': [100, 200, 150, 180]
     })
     
     result = group_and_aggregate(
-        df,
-        group_by='country',
-        agg_column='cases',
+        df, 
+        group_by='country', 
+        agg_column='cases', 
         agg_func=['sum', 'mean', 'count']
     )
     
-    assert 'sum' in result.columns or result.columns.nlevels > 1
-    # Check that multiple aggregations were performed
+    assert 'sum' in result.columns or isinstance(result.columns, pd.MultiIndex)
+    assert len(result) == 2
 
 
-def test_compare_groups() -> None:
-    """Test comparing statistics across groups."""
+def test_group_and_aggregate_with_sorting() -> None:
+    """
+    Test grouping with sorted results.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'UK', 'USA', 'USA', 'France', 'France'],
-        'cases': [100, 150, 200, 250, 300, 350]
+        'country': ['France', 'UK', 'USA'],
+        'cases': [120, 100, 200]
     })
     
-    comparison = compare_groups(df, group_column='country', value_column='cases')
+    result = group_and_aggregate(
+        df, 
+        group_by='country', 
+        agg_column='cases', 
+        agg_func='sum',
+        sort_by='cases',
+        ascending=False
+    )
     
-    assert 'UK' in comparison
-    assert 'USA' in comparison
-    assert 'France' in comparison
-    assert comparison['UK']['mean'] == 125.0
-    assert comparison['USA']['mean'] == 225.0
-    assert comparison['France']['mean'] == 325.0
+    assert result.iloc[0]['cases'] == 200  # USA first (highest)
+
+
+# ==============================================================================
+# Tests for Trend Analysis
+# ==============================================================================
+
+def test_calculate_trends_over_time() -> None:
+    """
+    Test calculating trends over time periods.
+    """
+    df = pd.DataFrame({
+        'date': pd.date_range('2020-01-01', periods=5, freq='ME'),
+        'cases': [100, 120, 150, 180, 200]
+    })
+    
+    trends = calculate_trends(df, date_column='date', value_column='cases')
+    
+    assert 'total_change' in trends
+    assert 'percent_change' in trends
+    assert 'average_change' in trends
+    assert trends['total_change'] == 100
+    assert trends['percent_change'] > 0
+
+
+def test_calculate_growth_rate() -> None:
+    """
+    Test calculating growth rate between periods.
+    """
+    df = pd.DataFrame({
+        'year': [2020, 2021, 2022],
+        'cases': [100, 150, 180]
+    })
+    
+    df_with_growth = calculate_growth_rate(df, value_column='cases')
+    
+    assert 'growth_rate' in df_with_growth.columns
+    assert pd.isna(df_with_growth['growth_rate'].iloc[0])  # First row has no previous
+    assert df_with_growth['growth_rate'].iloc[1] == 50.0  # (150-100)/100 * 100
+
+
+def test_calculate_growth_rate_with_zero_values() -> None:
+    """
+    Test growth rate handles zero values correctly.
+    """
+    df = pd.DataFrame({
+        'year': [2020, 2021, 2022],
+        'cases': [0, 100, 150]
+    })
+    
+    df_with_growth = calculate_growth_rate(df, value_column='cases')
+    
+    # Growth from 0 should be handled (infinity or NaN)
+    assert 'growth_rate' in df_with_growth.columns
+
+
+def test_calculate_moving_average() -> None:
+    """
+    Test calculating moving average.
+    """
+    df = pd.DataFrame({
+        'date': pd.date_range('2020-01-01', periods=10, freq='D'),
+        'cases': [100, 110, 120, 130, 140, 150, 160, 170, 180, 190]
+    })
+    
+    df_with_ma = calculate_moving_average(df, column='cases', window=3)
+    
+    assert 'cases_ma_3' in df_with_ma.columns
+    assert pd.isna(df_with_ma['cases_ma_3'].iloc[0])  # First values are NaN
+    assert df_with_ma['cases_ma_3'].iloc[2] == 110.0  # (100+110+120)/3
+
+
+def test_calculate_moving_average_different_windows() -> None:
+    """
+    Test moving average with different window sizes.
+    """
+    df = pd.DataFrame({
+        'cases': list(range(1, 11))
+    })
+    
+    df_with_ma = calculate_moving_average(df, column='cases', window=5)
+    
+    assert 'cases_ma_5' in df_with_ma.columns
+    assert df_with_ma['cases_ma_5'].iloc[4] == 3.0  # (1+2+3+4+5)/5
 
 
 # ==============================================================================
@@ -351,7 +440,9 @@ def test_compare_groups() -> None:
 # ==============================================================================
 
 def test_data_analyzer_initialization() -> None:
-    """Test DataAnalyzer initialization."""
+    """
+    Test DataAnalyzer initialization with DataFrame.
+    """
     df = pd.DataFrame({
         'country': ['UK', 'USA'],
         'cases': [100, 200]
@@ -363,82 +454,86 @@ def test_data_analyzer_initialization() -> None:
     assert len(analyzer.df) == 2
 
 
-def test_data_analyzer_filter_method() -> None:
-    """Test DataAnalyzer filter method."""
+def test_data_analyzer_filter_and_summarize() -> None:
+    """
+    Test chaining filter and summary operations.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'USA', 'France'],
-        'cases': [100, 200, 300]
-    })
-    
-    analyzer = DataAnalyzer(df)
-    result = analyzer.filter_by('country', 'UK').get_data()
-    
-    assert len(result) == 1
-    assert result['country'].iloc[0] == 'UK'
-
-
-def test_data_analyzer_chain_operations() -> None:
-    """Test chaining multiple analysis operations."""
-    df = pd.DataFrame({
-        'country': ['UK', 'UK', 'USA', 'USA', 'France'],
-        'year': [2020, 2021, 2020, 2021, 2020],
-        'cases': [100, 150, 200, 250, 300]
+        'country': ['UK', 'USA', 'France', 'UK'],
+        'year': [2020, 2020, 2021, 2021],
+        'cases': [100, 200, 150, 120]
     })
     
     analyzer = DataAnalyzer(df)
     result = (analyzer
-              .filter_by('year', 2020)
-              .group_by('country')
-              .aggregate('cases', 'sum')
-              .get_data())
+              .filter_by('country', 'UK')
+              .summarize('cases'))
     
-    assert len(result) <= 3  # Filtered by year first
+    assert 'mean' in result
+    assert result['count'] == 2
 
 
-def test_data_analyzer_get_summary() -> None:
-    """Test getting summary statistics."""
+def test_data_analyzer_group_analysis() -> None:
+    """
+    Test grouping and aggregation through DataAnalyzer.
+    """
+    df = pd.DataFrame({
+        'country': ['UK', 'USA', 'UK', 'USA'],
+        'cases': [100, 200, 150, 180]
+    })
+    
+    analyzer = DataAnalyzer(df)
+    result = analyzer.group_by('country').aggregate('cases', 'sum')
+    
+    assert len(result) == 2
+    assert 'cases' in result.columns
+
+
+def test_data_analyzer_get_filtered_data() -> None:
+    """
+    Test retrieving filtered data from DataAnalyzer.
+    """
     df = pd.DataFrame({
         'country': ['UK', 'USA', 'France'],
-        'cases': [100, 200, 300]
+        'cases': [100, 200, 150]
     })
     
     analyzer = DataAnalyzer(df)
-    summary = analyzer.get_summary(['cases'])
+    filtered = analyzer.filter_by('country', ['UK', 'USA']).get_data()
     
-    assert 'cases' in summary
-    assert 'mean' in summary['cases']
-    assert summary['cases']['mean'] == 200.0
+    assert len(filtered) == 2
+    assert set(filtered['country']) == {'UK', 'USA'}
 
 
-def test_data_analyzer_reset() -> None:
-    """Test resetting analyzer to original data."""
+def test_data_analyzer_trend_analysis() -> None:
+    """
+    Test trend analysis through DataAnalyzer.
+    """
     df = pd.DataFrame({
-        'country': ['UK', 'USA', 'France'],
-        'cases': [100, 200, 300]
+        'date': pd.date_range('2020-01-01', periods=5, freq='ME'),
+        'cases': [100, 120, 150, 180, 200]
     })
     
     analyzer = DataAnalyzer(df)
-    analyzer.filter_by('country', 'UK')
+    trends = analyzer.analyze_trends('date', 'cases')
     
-    assert len(analyzer.get_data()) == 1
-    
-    analyzer.reset()
-    
-    assert len(analyzer.get_data()) == 3
+    assert 'total_change' in trends
+    assert 'percent_change' in trends
 
 
-def test_data_analyzer_get_trends() -> None:
-    """Test trend analysis through analyzer."""
+def test_data_analyzer_get_analysis_report() -> None:
+    """
+    Test generating comprehensive analysis report.
+    """
     df = pd.DataFrame({
-        'date': pd.date_range('2020-01-01', periods=5, freq='D'),
-        'country': ['UK'] * 5,
-        'cases': [100, 110, 120, 130, 140]
+        'country': ['UK', 'USA', 'UK'],
+        'year': [2020, 2020, 2021],
+        'cases': [100, 200, 150]
     })
     
     analyzer = DataAnalyzer(df)
-    trends = analyzer.get_trends(date_column='date', value_column='cases')
+    report = analyzer.get_analysis_report()
     
-    assert 'total' in trends
-    assert 'average' in trends
-    assert trends['growth_rate'] > 0
-
+    assert 'total_records' in report
+    assert 'numeric_columns' in report
+    assert 'summary_statistics' in report

@@ -1,19 +1,18 @@
 """
 Data Filtering and Summary Analysis Module - Step 3
 
-This module provides functions for filtering and summarizing public health data:
-- Filter by columns, dates, and multiple conditions
+This module provides functions for filtering data and generating summary views:
+- Filter by column values, date ranges, numeric ranges
 - Calculate summary statistics (mean, min, max, count, etc.)
-- Analyze trends over time
 - Group and aggregate data
-- Compare groups
-- Moving averages
+- Analyze trends over time
+- Calculate growth rates and moving averages
 """
 
-from typing import Union, List, Dict, Any, Optional
-from datetime import datetime
+from typing import Union, Optional, List, Dict, Any
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 
 def filter_by_column(
@@ -31,7 +30,7 @@ def filter_by_column(
     column : str
         Column name to filter on
     value : any or list
-        Value(s) to filter for
+        Single value or list of values to filter by
 
     Returns
     -------
@@ -69,36 +68,66 @@ def filter_by_date_range(
     pd.DataFrame
         Filtered DataFrame
     """
-    df_copy = df.copy()
-    
-    # Ensure date column is datetime
-    if not pd.api.types.is_datetime64_any_dtype(df_copy[date_column]):
-        df_copy[date_column] = pd.to_datetime(df_copy[date_column])
-    
-    mask = pd.Series([True] * len(df_copy), index=df_copy.index)
+    filtered = df.copy()
     
     if start_date is not None:
-        mask &= (df_copy[date_column] >= pd.Timestamp(start_date))
+        filtered = filtered[filtered[date_column] >= start_date]
     
     if end_date is not None:
-        mask &= (df_copy[date_column] <= pd.Timestamp(end_date))
+        filtered = filtered[filtered[date_column] <= end_date]
     
-    return df_copy[mask]
+    return filtered
 
 
-def filter_by_multiple_conditions(
+def filter_by_numeric_range(
     df: pd.DataFrame,
-    conditions: Dict[str, Any]
+    column: str,
+    min_value: Optional[float] = None,
+    max_value: Optional[float] = None
 ) -> pd.DataFrame:
     """
-    Filter DataFrame by multiple conditions.
+    Filter DataFrame by numeric range.
 
     Parameters
     ----------
     df : pd.DataFrame
         DataFrame to filter
-    conditions : dict
-        Dictionary of column: value pairs
+    column : str
+        Name of numeric column
+    min_value : float, optional
+        Minimum value (inclusive)
+    max_value : float, optional
+        Maximum value (inclusive)
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame
+    """
+    filtered = df.copy()
+    
+    if min_value is not None:
+        filtered = filtered[filtered[column] >= min_value]
+    
+    if max_value is not None:
+        filtered = filtered[filtered[column] <= max_value]
+    
+    return filtered
+
+
+def filter_by_multiple_criteria(
+    df: pd.DataFrame,
+    criteria: Dict[str, Any]
+) -> pd.DataFrame:
+    """
+    Filter DataFrame by multiple criteria simultaneously.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to filter
+    criteria : dict
+        Dictionary mapping column names to values or lists of values
 
     Returns
     -------
@@ -107,24 +136,23 @@ def filter_by_multiple_conditions(
 
     Examples
     --------
-    >>> conditions = {'country': 'UK', 'year': 2020}
-    >>> filtered = filter_by_multiple_conditions(df, conditions)
+    >>> criteria = {'country': ['UK', 'USA'], 'year': 2020}
+    >>> filtered = filter_by_multiple_criteria(df, criteria)
     """
-    df_filtered = df.copy()
+    filtered = df.copy()
     
-    for column, value in conditions.items():
+    for column, value in criteria.items():
         if isinstance(value, list):
-            df_filtered = df_filtered[df_filtered[column].isin(value)]
+            filtered = filtered[filtered[column].isin(value)]
         else:
-            df_filtered = df_filtered[df_filtered[column] == value]
+            filtered = filtered[filtered[column] == value]
     
-    return df_filtered
+    return filtered
 
 
-def calculate_statistics(
+def calculate_summary_stats(
     df: pd.DataFrame,
-    column: str,
-    metrics: Optional[List[str]] = None
+    column: str
 ) -> Dict[str, float]:
     """
     Calculate summary statistics for a column.
@@ -134,157 +162,189 @@ def calculate_statistics(
     df : pd.DataFrame
         DataFrame containing the data
     column : str
-        Column name to calculate statistics for
-    metrics : list of str, optional
-        List of metrics to calculate. If None, calculates all.
-        Available: 'mean', 'median', 'min', 'max', 'sum', 'count', 'std'
+        Column name to analyze
 
     Returns
     -------
     dict
-        Dictionary of statistic: value pairs
+        Dictionary with statistics: mean, median, min, max, count, sum, std
     """
-    if metrics is None:
-        metrics = ['mean', 'median', 'min', 'max', 'sum', 'count', 'std']
-    
-    stats = {}
-    
-    for metric in metrics:
-        if metric == 'mean':
-            stats['mean'] = df[column].mean()
-        elif metric == 'median':
-            stats['median'] = df[column].median()
-        elif metric == 'min':
-            stats['min'] = df[column].min()
-        elif metric == 'max':
-            stats['max'] = df[column].max()
-        elif metric == 'sum':
-            stats['sum'] = df[column].sum()
-        elif metric == 'count':
-            stats['count'] = df[column].count()
-        elif metric == 'std':
-            stats['std'] = df[column].std()
+    stats = {
+        'mean': float(df[column].mean()),
+        'median': float(df[column].median()),
+        'min': float(df[column].min()),
+        'max': float(df[column].max()),
+        'count': int(df[column].count()),
+        'sum': float(df[column].sum()),
+        'std': float(df[column].std())
+    }
     
     return stats
 
 
-def calculate_summary(
+def get_column_statistics(
     df: pd.DataFrame,
-    columns: List[str],
-    metrics: Optional[List[str]] = None
+    columns: Optional[List[str]] = None
 ) -> Dict[str, Dict[str, float]]:
     """
-    Calculate summary statistics for multiple columns.
+    Get statistics for multiple columns.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame containing the data
-    columns : list of str
-        Column names to calculate statistics for
-    metrics : list of str, optional
-        List of metrics to calculate
+        DataFrame to analyze
+    columns : list of str, optional
+        Specific columns to analyze. If None, analyzes all numeric columns.
 
     Returns
     -------
     dict
-        Nested dictionary: {column: {metric: value}}
+        Dictionary mapping column names to their statistics
     """
-    summary = {}
+    if columns is None:
+        columns = df.select_dtypes(include=[np.number]).columns.tolist()
     
-    for column in columns:
-        summary[column] = calculate_statistics(df, column, metrics)
+    stats_dict = {}
+    for col in columns:
+        if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
+            stats_dict[col] = calculate_summary_stats(df, col)
     
-    return summary
+    return stats_dict
 
 
-def analyze_trends(
+def group_and_aggregate(
     df: pd.DataFrame,
-    date_column: str,
-    value_column: str,
-    group_by: Optional[str] = None
-) -> Dict[str, Any]:
+    group_by: Union[str, List[str]],
+    agg_column: str,
+    agg_func: Union[str, List[str]] = 'sum',
+    sort_by: Optional[str] = None,
+    ascending: bool = True
+) -> pd.DataFrame:
     """
-    Analyze trends over time.
+    Group DataFrame and apply aggregation function.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame containing time series data
+        DataFrame to group
+    group_by : str or list of str
+        Column(s) to group by
+    agg_column : str
+        Column to aggregate
+    agg_func : str or list of str, default 'sum'
+        Aggregation function(s): 'sum', 'mean', 'count', 'min', 'max', etc.
+    sort_by : str, optional
+        Column to sort results by
+    ascending : bool, default True
+        Sort order
+
+    Returns
+    -------
+    pd.DataFrame
+        Grouped and aggregated DataFrame
+    """
+    grouped = df.groupby(group_by)[agg_column].agg(agg_func).reset_index()
+    
+    if sort_by and sort_by in grouped.columns:
+        grouped = grouped.sort_values(sort_by, ascending=ascending)
+    
+    # If single agg_func, ensure column name is preserved
+    if isinstance(agg_func, str):
+        if len(grouped.columns) == 2 and grouped.columns[1] == agg_func:
+            grouped.columns = [group_by if isinstance(group_by, str) else group_by[0], agg_column]
+    
+    # Set index to group_by columns for easier access
+    if isinstance(group_by, list):
+        grouped = grouped.set_index(group_by)
+    else:
+        grouped = grouped.set_index(group_by)
+    
+    return grouped
+
+
+def calculate_trends(
+    df: pd.DataFrame,
+    date_column: str,
+    value_column: str
+) -> Dict[str, float]:
+    """
+    Calculate trends over time.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with time series data
     date_column : str
         Name of date column
     value_column : str
         Name of value column to analyze
-    group_by : str, optional
-        Column to group by before analyzing trends
 
     Returns
     -------
     dict
-        Dictionary containing trend metrics:
-        - total: Sum of all values
-        - average: Mean value
-        - growth_rate: Percentage growth (first to last)
-        - trend: 'increasing', 'decreasing', or 'stable'
-        
-        If group_by is provided, returns nested dict: {group: metrics}
+        Dictionary with trend statistics:
+        - total_change: Absolute change from start to end
+        - percent_change: Percentage change from start to end
+        - average_change: Average change per period
+    """
+    df_sorted = df.sort_values(date_column)
+    
+    first_value = df_sorted[value_column].iloc[0]
+    last_value = df_sorted[value_column].iloc[-1]
+    
+    total_change = last_value - first_value
+    percent_change = (total_change / first_value * 100) if first_value != 0 else 0
+    
+    # Calculate average change per period
+    num_periods = len(df_sorted) - 1
+    average_change = total_change / num_periods if num_periods > 0 else 0
+    
+    trends = {
+        'total_change': float(total_change),
+        'percent_change': float(percent_change),
+        'average_change': float(average_change),
+        'start_value': float(first_value),
+        'end_value': float(last_value),
+        'periods': int(num_periods + 1)
+    }
+    
+    return trends
+
+
+def calculate_growth_rate(
+    df: pd.DataFrame,
+    value_column: str,
+    periods: int = 1
+) -> pd.DataFrame:
+    """
+    Calculate growth rate between periods.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with time series data
+    value_column : str
+        Column to calculate growth rate for
+    periods : int, default 1
+        Number of periods to compare (1 = period-over-period)
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with additional 'growth_rate' column (percentage)
     """
     df_copy = df.copy()
     
-    # Ensure date column is datetime
-    if not pd.api.types.is_datetime64_any_dtype(df_copy[date_column]):
-        df_copy[date_column] = pd.to_datetime(df_copy[date_column])
+    # Calculate period-over-period growth rate
+    df_copy['growth_rate'] = df_copy[value_column].pct_change(periods=periods) * 100
     
-    # Sort by date
-    df_copy = df_copy.sort_values(date_column)
-    
-    if group_by is None:
-        return _calculate_trend_metrics(df_copy, value_column)
-    else:
-        # Group by and calculate trends for each group
-        trends = {}
-        for group_name, group_df in df_copy.groupby(group_by):
-            trends[group_name] = _calculate_trend_metrics(group_df, value_column)
-        return trends
-
-
-def _calculate_trend_metrics(df: pd.DataFrame, value_column: str) -> Dict[str, Any]:
-    """Helper function to calculate trend metrics."""
-    total = df[value_column].sum()
-    average = df[value_column].mean()
-    
-    # Calculate growth rate
-    first_value = df[value_column].iloc[0]
-    last_value = df[value_column].iloc[-1]
-    
-    if first_value != 0:
-        growth_rate = ((last_value - first_value) / first_value) * 100
-    else:
-        growth_rate = 0.0
-    
-    # Determine trend direction
-    if growth_rate > 5:
-        trend = 'increasing'
-    elif growth_rate < -5:
-        trend = 'decreasing'
-    else:
-        trend = 'stable'
-    
-    return {
-        'total': total,
-        'average': average,
-        'growth_rate': growth_rate,
-        'trend': trend,
-        'first_value': first_value,
-        'last_value': last_value
-    }
+    return df_copy
 
 
 def calculate_moving_average(
     df: pd.DataFrame,
     column: str,
-    window: int = 7,
-    output_column: Optional[str] = None
+    window: int = 3
 ) -> pd.DataFrame:
     """
     Calculate moving average for a column.
@@ -295,114 +355,36 @@ def calculate_moving_average(
         DataFrame containing the data
     column : str
         Column to calculate moving average for
-    window : int, default 7
+    window : int, default 3
         Window size for moving average
-    output_column : str, optional
-        Name for output column. Defaults to '{column}_ma'
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with added moving average column
+        DataFrame with additional moving average column
     """
     df_copy = df.copy()
     
-    if output_column is None:
-        output_column = f'{column}_ma'
-    
-    df_copy[output_column] = df_copy[column].rolling(window=window).mean()
+    ma_column_name = f"{column}_ma_{window}"
+    df_copy[ma_column_name] = df_copy[column].rolling(window=window).mean()
     
     return df_copy
 
 
-def group_and_aggregate(
-    df: pd.DataFrame,
-    group_by: Union[str, List[str]],
-    agg_column: str,
-    agg_func: Union[str, List[str]] = 'sum'
-) -> pd.DataFrame:
-    """
-    Group data and apply aggregation function(s).
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame to group and aggregate
-    group_by : str or list of str
-        Column(s) to group by
-    agg_column : str
-        Column to aggregate
-    agg_func : str or list of str, default 'sum'
-        Aggregation function(s): 'sum', 'mean', 'count', 'min', 'max', etc.
-
-    Returns
-    -------
-    pd.DataFrame
-        Grouped and aggregated DataFrame
-    """
-    if isinstance(agg_func, str):
-        result = df.groupby(group_by)[agg_column].agg(agg_func).reset_index()
-    else:
-        result = df.groupby(group_by)[agg_column].agg(agg_func).reset_index()
-    
-    # If single group_by column, set as index for easier access
-    if isinstance(group_by, str):
-        result = result.set_index(group_by)
-    
-    return result
-
-
-def compare_groups(
-    df: pd.DataFrame,
-    group_column: str,
-    value_column: str,
-    metrics: Optional[List[str]] = None
-) -> Dict[str, Dict[str, float]]:
-    """
-    Compare statistics across different groups.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing the data
-    group_column : str
-        Column to group by
-    value_column : str
-        Column to calculate statistics for
-    metrics : list of str, optional
-        Metrics to calculate for comparison
-
-    Returns
-    -------
-    dict
-        Nested dictionary: {group: {metric: value}}
-    """
-    comparison = {}
-    
-    for group_name, group_df in df.groupby(group_column):
-        comparison[group_name] = calculate_statistics(
-            group_df,
-            value_column,
-            metrics
-        )
-    
-    return comparison
-
-
 class DataAnalyzer:
     """
-    Comprehensive data analysis class with method chaining support.
+    Orchestrates data filtering and analysis operations with method chaining.
     
-    This class provides a fluent interface for filtering, summarizing,
-    and analyzing public health data.
+    This class provides a fluent interface for filtering, grouping, and
+    analyzing data while tracking operations.
     
     Examples
     --------
     >>> analyzer = DataAnalyzer(df)
     >>> result = (analyzer
     ...           .filter_by('country', 'UK')
-    ...           .filter_by_date('date', start_date, end_date)
-    ...           .get_summary(['cases', 'deaths']))
+    ...           .filter_numeric_range('cases', min_value=100)
+    ...           .summarize('cases'))
     """
     
     def __init__(self, df: pd.DataFrame):
@@ -429,9 +411,9 @@ class DataAnalyzer:
         Parameters
         ----------
         column : str
-            Column name to filter on
+            Column to filter on
         value : any or list
-            Value(s) to filter for
+            Value(s) to filter by
         
         Returns
         -------
@@ -442,7 +424,7 @@ class DataAnalyzer:
         self.operations.append(f"filter_by('{column}', {value})")
         return self
     
-    def filter_by_date(
+    def filter_date_range(
         self,
         date_column: str,
         start_date: Optional[datetime] = None,
@@ -454,7 +436,7 @@ class DataAnalyzer:
         Parameters
         ----------
         date_column : str
-            Name of date column
+            Date column name
         start_date : datetime, optional
             Start date
         end_date : datetime, optional
@@ -466,40 +448,59 @@ class DataAnalyzer:
             Self for method chaining
         """
         self.df = filter_by_date_range(self.df, date_column, start_date, end_date)
-        self.operations.append(f"filter_by_date('{date_column}')")
+        self.operations.append(f"filter_date_range('{date_column}')")
         return self
     
-    def filter_by_conditions(
+    def filter_numeric_range(
         self,
-        conditions: Dict[str, Any]
+        column: str,
+        min_value: Optional[float] = None,
+        max_value: Optional[float] = None
     ) -> 'DataAnalyzer':
         """
-        Filter by multiple conditions (chainable).
+        Filter by numeric range (chainable).
         
         Parameters
         ----------
-        conditions : dict
-            Dictionary of column: value pairs
+        column : str
+            Numeric column name
+        min_value : float, optional
+            Minimum value
+        max_value : float, optional
+            Maximum value
         
         Returns
         -------
         DataAnalyzer
             Self for method chaining
         """
-        self.df = filter_by_multiple_conditions(self.df, conditions)
-        self.operations.append(f"filter_by_conditions({conditions})")
+        self.df = filter_by_numeric_range(self.df, column, min_value, max_value)
+        self.operations.append(f"filter_numeric_range('{column}', {min_value}, {max_value})")
         return self
     
-    def group_by(
-        self,
-        column: Union[str, List[str]]
-    ) -> 'DataAnalyzer':
+    def summarize(self, column: str) -> Dict[str, float]:
         """
-        Set grouping for subsequent aggregation (chainable).
+        Calculate summary statistics for current filtered data.
         
         Parameters
         ----------
-        column : str or list of str
+        column : str
+            Column to summarize
+        
+        Returns
+        -------
+        dict
+            Summary statistics
+        """
+        return calculate_summary_stats(self.df, column)
+    
+    def group_by(self, columns: Union[str, List[str]]) -> 'DataAnalyzer':
+        """
+        Set grouping columns for subsequent aggregation (chainable).
+        
+        Parameters
+        ----------
+        columns : str or list of str
             Column(s) to group by
         
         Returns
@@ -507,17 +508,17 @@ class DataAnalyzer:
         DataAnalyzer
             Self for method chaining
         """
-        self._group_by = column
-        self.operations.append(f"group_by('{column}')")
+        self._group_by_columns = columns if isinstance(columns, list) else [columns]
+        self.operations.append(f"group_by({columns})")
         return self
     
     def aggregate(
         self,
         column: str,
         func: Union[str, List[str]] = 'sum'
-    ) -> 'DataAnalyzer':
+    ) -> pd.DataFrame:
         """
-        Aggregate grouped data (chainable).
+        Aggregate grouped data.
         
         Parameters
         ----------
@@ -528,28 +529,72 @@ class DataAnalyzer:
         
         Returns
         -------
+        pd.DataFrame
+            Aggregated results
+        """
+        if not hasattr(self, '_group_by_columns'):
+            raise ValueError("Must call group_by() before aggregate()")
+        
+        return group_and_aggregate(
+            self.df,
+            self._group_by_columns if len(self._group_by_columns) > 1 else self._group_by_columns[0],
+            column,
+            func
+        )
+    
+    def analyze_trends(
+        self,
+        date_column: str,
+        value_column: str
+    ) -> Dict[str, float]:
+        """
+        Analyze trends in current filtered data.
+        
+        Parameters
+        ----------
+        date_column : str
+            Date column
+        value_column : str
+            Value column
+        
+        Returns
+        -------
+        dict
+            Trend statistics
+        """
+        return calculate_trends(self.df, date_column, value_column)
+    
+    def add_growth_rate(self, column: str) -> 'DataAnalyzer':
+        """
+        Add growth rate calculation (chainable).
+        
+        Parameters
+        ----------
+        column : str
+            Column to calculate growth rate for
+        
+        Returns
+        -------
         DataAnalyzer
             Self for method chaining
         """
-        if hasattr(self, '_group_by'):
-            self.df = group_and_aggregate(self.df, self._group_by, column, func)
-            del self._group_by
-        self.operations.append(f"aggregate('{column}', '{func}')")
+        self.df = calculate_growth_rate(self.df, column)
+        self.operations.append(f"add_growth_rate('{column}')")
         return self
     
-    def calculate_moving_avg(
+    def add_moving_average(
         self,
         column: str,
-        window: int = 7
+        window: int = 3
     ) -> 'DataAnalyzer':
         """
-        Calculate moving average (chainable).
+        Add moving average calculation (chainable).
         
         Parameters
         ----------
         column : str
             Column to calculate moving average for
-        window : int, default 7
+        window : int
             Window size
         
         Returns
@@ -558,113 +603,43 @@ class DataAnalyzer:
             Self for method chaining
         """
         self.df = calculate_moving_average(self.df, column, window)
-        self.operations.append(f"calculate_moving_avg('{column}', {window})")
+        self.operations.append(f"add_moving_average('{column}', {window})")
         return self
     
     def get_data(self) -> pd.DataFrame:
         """
-        Get the current DataFrame.
+        Get the current filtered/analyzed DataFrame.
         
         Returns
         -------
         pd.DataFrame
-            Current DataFrame after all operations
+            Current DataFrame
         """
         return self.df.copy()
     
-    def get_summary(
-        self,
-        columns: List[str],
-        metrics: Optional[List[str]] = None
-    ) -> Dict[str, Dict[str, float]]:
+    def get_analysis_report(self) -> Dict[str, Any]:
         """
-        Get summary statistics for columns.
-        
-        Parameters
-        ----------
-        columns : list of str
-            Columns to summarize
-        metrics : list of str, optional
-            Metrics to calculate
+        Generate comprehensive analysis report.
         
         Returns
         -------
         dict
-            Summary statistics
+            Report containing:
+            - total_records: Number of records
+            - numeric_columns: List of numeric columns
+            - summary_statistics: Statistics for numeric columns
+            - operations: List of operations performed
         """
-        return calculate_summary(self.df, columns, metrics)
-    
-    def get_trends(
-        self,
-        date_column: str,
-        value_column: str,
-        group_by: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Analyze trends over time.
+        numeric_cols = self.df.select_dtypes(include=[np.number]).columns.tolist()
         
-        Parameters
-        ----------
-        date_column : str
-            Date column name
-        value_column : str
-            Value column to analyze
-        group_by : str, optional
-            Column to group by
+        report = {
+            'total_records': len(self.df),
+            'total_columns': len(self.df.columns),
+            'numeric_columns': numeric_cols,
+            'summary_statistics': get_column_statistics(self.df),
+            'operations': self.operations,
+            'original_records': len(self.original_df),
+            'records_filtered': len(self.original_df) - len(self.df)
+        }
         
-        Returns
-        -------
-        dict
-            Trend analysis results
-        """
-        return analyze_trends(self.df, date_column, value_column, group_by)
-    
-    def compare(
-        self,
-        group_column: str,
-        value_column: str,
-        metrics: Optional[List[str]] = None
-    ) -> Dict[str, Dict[str, float]]:
-        """
-        Compare statistics across groups.
-        
-        Parameters
-        ----------
-        group_column : str
-            Column to group by
-        value_column : str
-            Column to compare
-        metrics : list of str, optional
-            Metrics to calculate
-        
-        Returns
-        -------
-        dict
-            Comparison results
-        """
-        return compare_groups(self.df, group_column, value_column, metrics)
-    
-    def reset(self) -> 'DataAnalyzer':
-        """
-        Reset to original DataFrame.
-        
-        Returns
-        -------
-        DataAnalyzer
-            Self with reset data
-        """
-        self.df = self.original_df.copy()
-        self.operations = []
-        return self
-    
-    def get_operations_log(self) -> List[str]:
-        """
-        Get list of operations performed.
-        
-        Returns
-        -------
-        list of str
-            List of operation descriptions
-        """
-        return self.operations.copy()
-
+        return report

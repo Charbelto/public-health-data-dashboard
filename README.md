@@ -55,10 +55,13 @@ This project is a command-line Python tool to explore public health datasets
 - **Session Management**: Track loaded data and applied filters
 - **Error Handling**: Comprehensive error messages and validation
 
-### 🔄 Planned Features
+### ✅ Completed - Step 5: Extension Features
 
-- CRUD operations on database
-- Activity logging to file
+- **CRUD Operations**: Full Create, Read, Update, Delete functionality for database management
+- **Activity Logging**: Comprehensive logging of all user activities to file
+- **Database Management Menu**: Interactive CLI for database operations
+- **Activity Log Viewer**: View, filter, and export activity logs
+- **Export Activity Logs**: Export logs to CSV format
 
 ## Project Structure
 
@@ -78,10 +81,19 @@ public-health-data-dashboard/
 │   ├── main.py                          # Core data loading functions
 │   ├── data_loader.py                   # DataLoader class and demonstration
 │   ├── cleaning.py                      # Data cleaning functions
-│   └── cleaning_demo.py                 # Cleaning demonstration script
+│   ├── cleaning_demo.py                 # Cleaning demonstration script
+│   ├── analysis.py                      # Data analysis and filtering
+│   ├── cli.py                           # CLI presentation layer
+│   ├── dashboard.py                     # Interactive dashboard (MAIN APP)
+│   ├── crud.py                          # CRUD operations for databases
+│   └── activity_logger.py               # Activity logging functionality
 ├── tests/                               # Test suite (TDD approach)
 │   ├── test_main.py                     # 21 data loading tests
-│   └── test_cleaning.py                 # 28 data cleaning tests
+│   ├── test_cleaning.py                 # 28 data cleaning tests
+│   ├── test_analysis.py                 # 29 data analysis tests
+│   ├── test_crud.py                     # 27 CRUD operation tests
+│   └── test_activity_logger.py          # 24 activity logging tests
+├── logs/                                # Activity logs (generated)
 ├── requirements.txt                     # Python dependencies
 ├── README.md                            # This file
 ├── STEP1_SUMMARY.md                     # Step 1 implementation report
@@ -181,6 +193,57 @@ pytest tests/test_cleaning.py -v
 pytest tests/ -v --cov=src --cov-report=html
 ```
 
+### Using CRUD Operations
+
+**Database CRUD (Step 5)**
+
+```python
+from src.crud import CRUDManager
+
+# Initialize CRUD manager
+crud = CRUDManager("data/health_data.db")
+
+# List all tables
+tables = crud.get_tables()
+
+# Create a new record
+crud.create("patients", {"id": 1, "name": "John Doe", "age": 30})
+
+# Read records with filter
+patients = crud.read("patients", where="age > 25")
+
+# Update a record
+crud.update("patients", {"age": 31}, where="id=1")
+
+# Delete a record
+crud.delete("patients", where="id=1")
+
+# Get table information
+info = crud.get_table_info("patients")
+```
+
+**Activity Logging (Step 5)**
+
+```python
+from src.activity_logger import ActivityLogger, get_activity_stats
+
+# Initialize logger
+logger = ActivityLogger("logs/activity.log", user="analyst1")
+
+# Log activities
+logger.log("data_loaded", "Loaded vaccination data from CSV")
+logger.log("data_filtered", "Filtered by country=UK", 
+          metadata={"records": 100})
+
+# View activity statistics
+stats = get_activity_stats("logs/activity.log")
+print(f"Total activities: {stats['total_activities']}")
+
+# Export logs to CSV
+from src.activity_logger import export_log_to_csv
+export_log_to_csv("logs/activity.log", "reports/activity_report.csv")
+```
+
 ### Using the Core Functions
 
 **Data Loading (Step 1)**
@@ -248,7 +311,9 @@ This project follows TDD principles:
 - Step 1 (Data Loading): 21 tests
 - Step 2 (Data Cleaning): 28 tests
 - Step 3 (Filtering & Analysis): 29 tests
-- **Total**: 78 tests, all passing ✅
+- Step 5 (CRUD Operations): 27 tests
+- Step 5 (Activity Logging): 24 tests
+- **Total**: 129 tests, all passing ✅
 
 ### Software Engineering Best Practices
 
@@ -329,4 +394,4 @@ This project is for educational purposes as part of a university coursework assi
 - ✅ **Step 2**: Data Cleaning & Structuring - **COMPLETE** (28 tests)
 - ✅ **Step 3**: Filtering and Summary Views - **COMPLETE** (29 tests)
 - ✅ **Step 4**: Presentation Layer (CLI) - **COMPLETE**
-- ⏳ **Step 5**: Extension Features (CRUD, Activity Logging)
+- ✅ **Step 5**: Extension Features - **COMPLETE** (51 tests: 27 CRUD + 24 Logging)

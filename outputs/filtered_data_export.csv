@@ -1,0 +1,7 @@
+country,year,month,vaccine_type,doses_administered,population,vaccination_rate
+United Kingdom,2021,1,COVID-19,3500000,67000000,0.0522
+United Kingdom,2021,2,COVID-19,7000000,67000000,0.1045
+United Kingdom,2021,3,COVID-19,12000000,67000000,0.1791
+United States,2021,1,COVID-19,12000000,331000000,0.0363
+United States,2021,2,COVID-19,25000000,331000000,0.0755
+United States,2021,3,COVID-19,45000000,331000000,0.1359

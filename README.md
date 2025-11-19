@@ -30,10 +30,20 @@ This project is a command-line Python tool to explore public health datasets
 - **Text Standardization**: Clean and normalize text data
 - **DataCleaner Class**: Fluent interface for chaining cleaning operations
 
+### ✅ Completed - Step 3: Filtering and Summary Views
+
+- **Column Filtering**: Filter by single or multiple column values
+- **Date Range Filtering**: Filter by start/end dates with flexible ranges
+- **Numeric Range Filtering**: Filter by min/max numeric values
+- **Multiple Criteria Filtering**: Combine multiple filters simultaneously
+- **Summary Statistics**: Calculate mean, median, min, max, count, sum, std
+- **Grouping and Aggregation**: Group by columns with aggregate functions
+- **Trend Analysis**: Calculate trends over time with growth rates
+- **Moving Averages**: Calculate rolling averages for time series
+- **DataAnalyzer Class**: Fluent interface for chaining analysis operations
+
 ### 🔄 Planned Features
 
-- Filtering by user-selected criteria (country, date range, age group)
-- Summary statistics (mean, min, max, counts, trends)
 - Command-line interface (CLI) for user interaction
 - Data visualizations with Matplotlib
 - CRUD operations on database
@@ -229,7 +239,8 @@ This project follows TDD principles:
 **Test Statistics:**
 - Step 1 (Data Loading): 21 tests
 - Step 2 (Data Cleaning): 28 tests
-- **Total**: 49 tests, all passing ✅
+- Step 3 (Filtering & Analysis): 29 tests
+- **Total**: 78 tests, all passing ✅
 
 ### Software Engineering Best Practices
 
@@ -306,8 +317,8 @@ This project is for educational purposes as part of a university coursework assi
 
 ## Implementation Progress
 
-- ✅ **Step 1**: Data Access & Loading - **COMPLETE**
-- ✅ **Step 2**: Data Cleaning & Structuring - **COMPLETE**
-- 🔄 **Step 3**: Filtering and Summary Views - **IN PROGRESS**
+- ✅ **Step 1**: Data Access & Loading - **COMPLETE** (21 tests)
+- ✅ **Step 2**: Data Cleaning & Structuring - **COMPLETE** (28 tests)
+- ✅ **Step 3**: Filtering and Summary Views - **COMPLETE** (29 tests)
 - ⏳ **Step 4**: Presentation Layer (CLI)
 - ⏳ **Step 5**: Extension Features (CRUD, Export, Logging)

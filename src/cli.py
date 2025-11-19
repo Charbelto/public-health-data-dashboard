@@ -1,636 +1,448 @@
 """
-Command-Line Interface (CLI) Presentation Layer - Step 4
+Command-Line Interface Module - Step 4
 
-This module provides CLI functions for presenting data:
-- Format tables and statistics for console display
-- Create visualizations (bar charts, line charts)
-- Interactive CLI for data exploration
-- Export functionality
+This module provides CLI functions for user interaction:
+- Menu display and navigation
+- User input handling
+- Data display (tables, summaries)
+- Visualizations (charts with matplotlib)
+- Integration with data loading, cleaning, and analysis
 """
 
-from typing import Union, Optional, Dict, Any, List
+from typing import Optional, List, Dict, Any, Callable
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
+from datetime import datetime
 
-from src.main import load_dataset, load_json_dataset
+from src.main import load_dataset, load_json_dataset, load_to_database, read_from_database
 from src.cleaning import DataCleaner
-from src.analysis import DataAnalyzer, calculate_summary_stats, group_and_aggregate
+from src.analysis import DataAnalyzer
 
 
-def format_table(
-    df: pd.DataFrame,
-    max_rows: Optional[int] = None,
-    max_cols: Optional[int] = None
-) -> str:
+def clear_screen():
+    """Clear the terminal screen."""
+    import os
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+
+def print_header(title: str):
+    """Print a formatted header."""
+    print("\n" + "="*70)
+    print(f" {title}")
+    print("="*70 + "\n")
+
+
+def print_menu(title: str, options: List[str]):
     """
-    Format DataFrame as a string table for console display.
+    Print a menu with numbered options.
+    
+    Parameters
+    ----------
+    title : str
+        Menu title
+    options : list of str
+        List of menu options
+    """
+    print_header(title)
+    for i, option in enumerate(options, 1):
+        print(f"  {i}. {option}")
+    print(f"  0. Back/Exit")
+    print()
 
+
+def get_user_choice(max_choice: int) -> int:
+    """
+    Get and validate user's menu choice.
+    
+    Parameters
+    ----------
+    max_choice : int
+        Maximum valid choice number
+    
+    Returns
+    -------
+    int
+        User's validated choice
+    """
+    while True:
+        try:
+            choice = int(input("Enter your choice: "))
+            if 0 <= choice <= max_choice:
+                return choice
+            else:
+                print(f"Please enter a number between 0 and {max_choice}")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+        except KeyboardInterrupt:
+            print("\n\nExiting...")
+            return 0
+
+
+def get_user_input(prompt: str, input_type: str = "string") -> Any:
+    """
+    Get user input with type validation.
+    
+    Parameters
+    ----------
+    prompt : str
+        Input prompt message
+    input_type : str
+        Expected input type: 'string', 'int', 'float', 'date'
+    
+    Returns
+    -------
+    any
+        User's input in the specified type
+    """
+    while True:
+        try:
+            user_input = input(f"{prompt}: ").strip()
+            
+            if not user_input:
+                return None
+            
+            if input_type == "int":
+                return int(user_input)
+            elif input_type == "float":
+                return float(user_input)
+            elif input_type == "date":
+                return datetime.strptime(user_input, "%Y-%m-%d")
+            else:
+                return user_input
+        except ValueError:
+            print(f"Invalid {input_type}. Please try again.")
+        except KeyboardInterrupt:
+            print("\n")
+            return None
+
+
+def display_dataframe(df: pd.DataFrame, title: str = "Data", max_rows: int = 20):
+    """
+    Display a DataFrame in a formatted way.
+    
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame to format
-    max_rows : int, optional
-        Maximum rows to display
-    max_cols : int, optional
-        Maximum columns to display
-
-    Returns
-    -------
-    str
-        Formatted table string
+        DataFrame to display
+    title : str
+        Title for the display
+    max_rows : int
+        Maximum number of rows to display
     """
-    if df.empty:
-        return "No data available (empty DataFrame)"
+    print_header(title)
     
-    # Configure pandas display options temporarily
-    with pd.option_context(
-        'display.max_rows', max_rows,
-        'display.max_columns', max_cols,
-        'display.width', 120
-    ):
-        return df.to_string()
+    if df.empty:
+        print("No data available.\n")
+        return
+    
+    print(f"Total records: {len(df)}")
+    print(f"Columns: {', '.join(df.columns)}\n")
+    
+    if len(df) > max_rows:
+        print(f"Showing first {max_rows} rows:\n")
+        print(df.head(max_rows).to_string(index=False))
+        print(f"\n... and {len(df) - max_rows} more rows")
+    else:
+        print(df.to_string(index=False))
+    
+    print()
 
 
-def format_summary_stats(
-    stats: Dict[str, float],
-    title: Optional[str] = None
-) -> str:
+def display_summary_stats(stats: Dict[str, float], title: str = "Summary Statistics"):
     """
-    Format summary statistics for console display.
-
+    Display summary statistics in a formatted way.
+    
     Parameters
     ----------
     stats : dict
         Dictionary of statistics
-    title : str, optional
-        Title for the statistics
-
-    Returns
-    -------
-    str
-        Formatted statistics string
+    title : str
+        Title for the display
     """
-    lines = []
-    
-    if title:
-        lines.append("=" * 50)
-        lines.append(f" {title}")
-        lines.append("=" * 50)
+    print_header(title)
     
     for key, value in stats.items():
         if isinstance(value, float):
-            lines.append(f"  {key:15s}: {value:,.2f}")
+            print(f"  {key:20s}: {value:,.2f}")
         else:
-            lines.append(f"  {key:15s}: {value}")
+            print(f"  {key:20s}: {value}")
     
-    return "\n".join(lines)
+    print()
 
 
-def create_bar_chart(
+def display_grouped_data(df: pd.DataFrame, title: str = "Grouped Results"):
+    """
+    Display grouped/aggregated data.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Grouped DataFrame
+    title : str
+        Title for the display
+    """
+    print_header(title)
+    print(df.to_string())
+    print()
+
+
+def plot_bar_chart(
     df: pd.DataFrame,
-    x: str,
-    y: str,
+    x_column: str,
+    y_column: str,
     title: str = "Bar Chart",
-    xlabel: Optional[str] = None,
-    ylabel: Optional[str] = None,
-    sort_by: Optional[str] = None,
-    ascending: bool = True,
-    figsize: tuple = (10, 6)
-) -> plt.Figure:
+    xlabel: str = "",
+    ylabel: str = ""
+):
     """
-    Create a bar chart.
-
+    Create and display a bar chart.
+    
     Parameters
     ----------
     df : pd.DataFrame
         Data to plot
-    x : str
+    x_column : str
         Column for x-axis
-    y : str
-        Column for y-axis (values)
+    y_column : str
+        Column for y-axis
     title : str
         Chart title
-    xlabel : str, optional
+    xlabel : str
         X-axis label
-    ylabel : str, optional
+    ylabel : str
         Y-axis label
-    sort_by : str, optional
-        Column to sort by
-    ascending : bool
-        Sort order
-    figsize : tuple
-        Figure size
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        Created figure
     """
-    fig, ax = plt.subplots(figsize=figsize)
-    
-    # Sort if requested
-    plot_df = df.copy()
-    if sort_by and sort_by in plot_df.columns:
-        plot_df = plot_df.sort_values(sort_by, ascending=ascending)
-    
-    # Create bar chart
-    ax.bar(plot_df[x], plot_df[y], color='steelblue', alpha=0.8)
-    
-    # Labels and title
-    ax.set_xlabel(xlabel or x)
-    ax.set_ylabel(ylabel or y)
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    
-    # Rotate x-axis labels if needed
+    plt.figure(figsize=(10, 6))
+    plt.bar(df[x_column], df[y_column])
+    plt.title(title)
+    plt.xlabel(xlabel or x_column)
+    plt.ylabel(ylabel or y_column)
     plt.xticks(rotation=45, ha='right')
-    
-    # Add grid
-    ax.grid(axis='y', alpha=0.3)
-    
     plt.tight_layout()
-    
-    return fig
+    plt.show()
 
 
-def create_line_chart(
+def plot_line_chart(
     df: pd.DataFrame,
-    x: str,
-    y: str,
+    x_column: str,
+    y_column: str,
     title: str = "Line Chart",
-    xlabel: Optional[str] = None,
-    ylabel: Optional[str] = None,
-    figsize: tuple = (10, 6)
-) -> plt.Figure:
+    xlabel: str = "",
+    ylabel: str = ""
+):
     """
-    Create a line chart.
-
+    Create and display a line chart.
+    
     Parameters
     ----------
     df : pd.DataFrame
         Data to plot
-    x : str
+    x_column : str
         Column for x-axis
-    y : str
+    y_column : str
         Column for y-axis
     title : str
         Chart title
-    xlabel : str, optional
+    xlabel : str
         X-axis label
-    ylabel : str, optional
+    ylabel : str
         Y-axis label
-    figsize : tuple
-        Figure size
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        Created figure
     """
-    fig, ax = plt.subplots(figsize=figsize)
-    
-    # Create line chart
-    ax.plot(df[x], df[y], marker='o', linewidth=2, markersize=6, color='steelblue')
-    
-    # Labels and title
-    ax.set_xlabel(xlabel or x)
-    ax.set_ylabel(ylabel or y)
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    
-    # Add grid
-    ax.grid(alpha=0.3)
-    
+    plt.figure(figsize=(10, 6))
+    plt.plot(df[x_column], df[y_column], marker='o')
+    plt.title(title)
+    plt.xlabel(xlabel or x_column)
+    plt.ylabel(ylabel or y_column)
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    
-    return fig
+    plt.show()
 
 
-def create_comparison_chart(
+def plot_grouped_bar_chart(
     df: pd.DataFrame,
-    x: str,
-    y: str,
-    group_by: str,
-    title: str = "Comparison Chart",
-    xlabel: Optional[str] = None,
-    ylabel: Optional[str] = None,
-    figsize: tuple = (12, 6)
-) -> plt.Figure:
+    title: str = "Grouped Bar Chart",
+    ylabel: str = "Value"
+):
     """
-    Create a comparison chart with multiple series.
-
+    Create and display a bar chart from grouped data.
+    
     Parameters
     ----------
     df : pd.DataFrame
-        Data to plot
-    x : str
-        Column for x-axis
-    y : str
-        Column for y-axis
-    group_by : str
-        Column to group by (creates separate lines/bars)
+        Grouped DataFrame with index as x-axis
     title : str
         Chart title
-    xlabel : str, optional
-        X-axis label
-    ylabel : str, optional
+    ylabel : str
         Y-axis label
-    figsize : tuple
-        Figure size
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        Created figure
     """
-    fig, ax = plt.subplots(figsize=figsize)
-    
-    # Plot each group
-    for group_name, group_data in df.groupby(group_by):
-        ax.plot(group_data[x], group_data[y], marker='o', label=str(group_name), linewidth=2)
-    
-    # Labels and title
-    ax.set_xlabel(xlabel or x)
-    ax.set_ylabel(ylabel or y)
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    
-    # Legend
-    ax.legend()
-    
-    # Grid
-    ax.grid(alpha=0.3)
-    
+    plt.figure(figsize=(10, 6))
+    df.plot(kind='bar', figsize=(10, 6))
+    plt.title(title)
+    plt.ylabel(ylabel)
+    plt.xlabel("")
+    plt.xticks(rotation=45, ha='right')
+    plt.legend()
     plt.tight_layout()
-    
-    return fig
+    plt.show()
 
 
-def save_chart(
-    fig: plt.Figure,
-    output_path: Union[str, Path],
-    dpi: int = 300
-) -> bool:
+def confirm_action(message: str = "Continue?") -> bool:
     """
-    Save a chart to file.
-
+    Ask user for confirmation.
+    
     Parameters
     ----------
-    fig : matplotlib.figure.Figure
-        Figure to save
-    output_path : str or Path
-        Output file path
-    dpi : int
-        Resolution (dots per inch)
-
+    message : str
+        Confirmation message
+    
     Returns
     -------
     bool
-        True if successful
+        True if user confirms, False otherwise
     """
-    try:
-        output_path = Path(output_path)
-        
-        # Create parent directories if needed
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Save figure
-        fig.savefig(output_path, dpi=dpi, bbox_inches='tight')
-        plt.close(fig)
-        
-        return True
-    except Exception as e:
-        print(f"Error saving chart: {e}")
-        return False
+    while True:
+        response = input(f"{message} (y/n): ").lower().strip()
+        if response in ['y', 'yes']:
+            return True
+        elif response in ['n', 'no']:
+            return False
+        else:
+            print("Please enter 'y' or 'n'")
 
 
-class HealthDataCLI:
+def pause():
+    """Pause and wait for user to press Enter."""
+    input("\nPress Enter to continue...")
+
+
+class CLISession:
     """
-    Command-line interface for health data exploration.
+    Manages a CLI session with loaded data.
     
-    Provides methods for loading data, applying filters, showing summaries,
-    creating visualizations, and exporting results.
-    
-    Examples
-    --------
-    >>> cli = HealthDataCLI()
-    >>> cli.load_data("data/vaccination_data.csv")
-    >>> cli.apply_filter('country', 'UK')
-    >>> cli.show_summary('cases')
-    >>> cli.create_visualization('bar', 'country', 'cases')
+    This class maintains the current dataset and provides methods
+    for interacting with it through the CLI.
     """
     
     def __init__(self):
-        """Initialize the CLI."""
-        self.df = None
-        self.original_df = None
-        self.filters_applied = []
-        self.data_source = None
+        """Initialize a new CLI session."""
+        self.df: Optional[pd.DataFrame] = None
+        self.df_filtered: Optional[pd.DataFrame] = None
+        self.data_name: str = "No data loaded"
+        self.filters_applied: List[str] = []
     
-    def load_data(self, file_path: Union[str, Path]) -> bool:
+    def load_data(self, df: pd.DataFrame, name: str):
         """
-        Load data from a file.
+        Load data into the session.
         
         Parameters
         ----------
-        file_path : str or Path
-            Path to CSV or JSON file
-        
-        Returns
-        -------
-        bool
-            True if successful
+        df : pd.DataFrame
+            Data to load
+        name : str
+            Name/description of the data
         """
-        try:
-            file_path = Path(file_path)
-            
-            if not file_path.exists():
-                print(f"Error: File not found: {file_path}")
-                return False
-            
-            # Load based on extension
-            if file_path.suffix == '.csv':
-                self.df = load_dataset(file_path)
-            elif file_path.suffix == '.json':
-                self.df = load_json_dataset(file_path)
-            else:
-                print(f"Error: Unsupported file type: {file_path.suffix}")
-                return False
-            
-            self.original_df = self.df.copy()
-            self.data_source = str(file_path)
+        self.df = df.copy()
+        self.df_filtered = df.copy()
+        self.data_name = name
+        self.filters_applied = []
+    
+    def has_data(self) -> bool:
+        """Check if data is loaded."""
+        return self.df is not None and not self.df.empty
+    
+    def apply_filter(self, filtered_df: pd.DataFrame, filter_description: str):
+        """
+        Apply a filter to the current data.
+        
+        Parameters
+        ----------
+        filtered_df : pd.DataFrame
+            Filtered DataFrame
+        filter_description : str
+            Description of the filter applied
+        """
+        self.df_filtered = filtered_df
+        self.filters_applied.append(filter_description)
+    
+    def reset_filters(self):
+        """Reset all filters to original data."""
+        if self.df is not None:
+            self.df_filtered = self.df.copy()
             self.filters_applied = []
-            
-            print(f"Successfully loaded {len(self.df)} records from {file_path.name}")
-            return True
-            
-        except Exception as e:
-            print(f"Error loading data: {e}")
-            return False
     
-    def apply_filter(
-        self,
-        column: str,
-        value: Union[Any, List[Any]]
-    ) -> bool:
+    def get_current_data(self) -> pd.DataFrame:
+        """Get the current (filtered) data."""
+        return self.df_filtered if self.df_filtered is not None else pd.DataFrame()
+    
+    def get_status(self) -> str:
         """
-        Apply a filter to the data.
-        
-        Parameters
-        ----------
-        column : str
-            Column to filter on
-        value : any or list
-            Value(s) to filter by
+        Get current session status.
         
         Returns
         -------
-        bool
-            True if successful
+        str
+            Formatted status message
         """
-        if self.df is None:
-            print("Error: No data loaded")
-            return False
+        if not self.has_data():
+            return "No data loaded"
         
-        try:
-            if isinstance(value, list):
-                self.df = self.df[self.df[column].isin(value)]
-            else:
-                self.df = self.df[self.df[column] == value]
-            
-            self.filters_applied.append(f"{column} = {value}")
-            print(f"Filter applied: {column} = {value}")
-            print(f"Records remaining: {len(self.df)}")
-            
-            return True
-            
-        except Exception as e:
-            print(f"Error applying filter: {e}")
-            return False
-    
-    def reset_filters(self) -> bool:
-        """
-        Reset all filters and restore original data.
+        status = f"Data: {self.data_name}\n"
+        status += f"Total records: {len(self.df)}\n"
+        status += f"Current view: {len(self.df_filtered)} records"
         
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        if self.original_df is None:
-            print("Error: No original data available")
-            return False
-        
-        self.df = self.original_df.copy()
-        self.filters_applied = []
-        print(f"Filters reset. Records: {len(self.df)}")
-        
-        return True
-    
-    def show_data(self, max_rows: int = 10) -> None:
-        """
-        Display current data.
-        
-        Parameters
-        ----------
-        max_rows : int
-            Maximum rows to display
-        """
-        if self.df is None:
-            print("No data loaded")
-            return
-        
-        print(f"\nShowing {min(max_rows, len(self.df))} of {len(self.df)} records:")
-        print(format_table(self.df.head(max_rows)))
-    
-    def show_summary(self, column: str) -> None:
-        """
-        Display summary statistics for a column.
-        
-        Parameters
-        ----------
-        column : str
-            Column to summarize
-        """
-        if self.df is None:
-            print("No data loaded")
-            return
-        
-        if column not in self.df.columns:
-            print(f"Error: Column '{column}' not found")
-            return
-        
-        try:
-            stats = calculate_summary_stats(self.df, column)
-            print(format_summary_stats(stats, title=f"Summary Statistics: {column}"))
-        except Exception as e:
-            print(f"Error calculating summary: {e}")
-    
-    def show_grouped_data(
-        self,
-        group_by: str,
-        agg_column: str,
-        agg_func: str = 'sum'
-    ) -> None:
-        """
-        Display grouped and aggregated data.
-        
-        Parameters
-        ----------
-        group_by : str
-            Column to group by
-        agg_column : str
-            Column to aggregate
-        agg_func : str
-            Aggregation function
-        """
-        if self.df is None:
-            print("No data loaded")
-            return
-        
-        try:
-            result = group_and_aggregate(
-                self.df,
-                group_by=group_by,
-                agg_column=agg_column,
-                agg_func=agg_func
-            )
-            
-            print(f"\n{agg_func.capitalize()} of {agg_column} by {group_by}:")
-            print(format_table(result))
-            
-        except Exception as e:
-            print(f"Error grouping data: {e}")
-    
-    def export_data(self, output_path: Union[str, Path]) -> bool:
-        """
-        Export current (filtered) data to CSV.
-        
-        Parameters
-        ----------
-        output_path : str or Path
-            Output file path
-        
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        if self.df is None:
-            print("No data loaded")
-            return False
-        
-        try:
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            self.df.to_csv(output_path, index=False)
-            print(f"Exported {len(self.df)} records to {output_path}")
-            
-            return True
-            
-        except Exception as e:
-            print(f"Error exporting data: {e}")
-            return False
-    
-    def create_visualization(
-        self,
-        chart_type: str,
-        x: str,
-        y: str,
-        title: Optional[str] = None,
-        output_path: Optional[Union[str, Path]] = None,
-        **kwargs
-    ) -> bool:
-        """
-        Create and optionally save a visualization.
-        
-        Parameters
-        ----------
-        chart_type : str
-            Type of chart: 'bar', 'line', or 'comparison'
-        x : str
-            Column for x-axis
-        y : str
-            Column for y-axis
-        title : str, optional
-            Chart title
-        output_path : str or Path, optional
-            Path to save chart
-        **kwargs
-            Additional arguments for chart creation
-        
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        if self.df is None:
-            print("No data loaded")
-            return False
-        
-        try:
-            # Generate title if not provided
-            if title is None:
-                title = f"{y} by {x}"
-            
-            # Create chart based on type
-            if chart_type == 'bar':
-                fig = create_bar_chart(self.df, x, y, title, **kwargs)
-            elif chart_type == 'line':
-                fig = create_line_chart(self.df, x, y, title, **kwargs)
-            elif chart_type == 'comparison':
-                if 'group_by' not in kwargs:
-                    print("Error: 'group_by' required for comparison chart")
-                    return False
-                fig = create_comparison_chart(self.df, x, y, title=title, **kwargs)
-            else:
-                print(f"Error: Unknown chart type: {chart_type}")
-                return False
-            
-            # Save if output path provided
-            if output_path:
-                return save_chart(fig, output_path)
-            else:
-                # Just close the figure
-                plt.close(fig)
-                print("Chart created successfully")
-                return True
-                
-        except Exception as e:
-            print(f"Error creating visualization: {e}")
-            return False
-    
-    def get_status(self) -> Dict[str, Any]:
-        """
-        Get current CLI status.
-        
-        Returns
-        -------
-        dict
-            Status information
-        """
-        status = {
-            'data_loaded': self.df is not None,
-            'data_source': self.data_source,
-            'record_count': len(self.df) if self.df is not None else 0,
-            'column_count': len(self.df.columns) if self.df is not None else 0,
-            'filters_applied': len(self.filters_applied),
-            'filters': self.filters_applied
-        }
+        if self.filters_applied:
+            status += f"\nFilters applied: {len(self.filters_applied)}"
+            for filter_desc in self.filters_applied:
+                status += f"\n  - {filter_desc}"
         
         return status
-    
-    def get_columns(self) -> List[str]:
-        """
-        Get list of available columns.
-        
-        Returns
-        -------
-        list
-            Column names
-        """
-        if self.df is None:
-            return []
-        return self.df.columns.tolist()
 
+
+def export_to_csv(df: pd.DataFrame, default_filename: str = "export.csv"):
+    """
+    Export DataFrame to CSV file.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data to export
+    default_filename : str
+        Default filename
+    """
+    filename = get_user_input(
+        f"Enter filename (default: {default_filename})",
+        "string"
+    )
+    
+    if not filename:
+        filename = default_filename
+    
+    if not filename.endswith('.csv'):
+        filename += '.csv'
+    
+    try:
+        df.to_csv(filename, index=False)
+        print(f"\n[SUCCESS] Data exported to {filename}")
+    except Exception as e:
+        print(f"\n[ERROR] Failed to export: {e}")
+
+
+def format_number(value: float, decimals: int = 2) -> str:
+    """
+    Format a number with thousands separators.
+    
+    Parameters
+    ----------
+    value : float
+        Number to format
+    decimals : int
+        Number of decimal places
+    
+    Returns
+    -------
+    str
+        Formatted number string
+    """
+    return f"{value:,.{decimals}f}"

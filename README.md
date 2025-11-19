@@ -133,9 +133,21 @@ public-health-data-dashboard/
 
 ### Running the Application
 
-**Interactive Dashboard (Step 4) - Main Application**
+**🎨 NEW: Graphical User Interface (GUI) - Recommended**
 
-To run the interactive command-line dashboard:
+To run the GUI dashboard (tkinter-based):
+
+```bash
+# On Windows PowerShell:
+$env:PYTHONPATH="$PWD"; python src/gui_dashboard.py
+
+# On Linux/Mac:
+export PYTHONPATH=$PWD && python src/gui_dashboard.py
+```
+
+**Interactive Command-Line Dashboard (Step 4)**
+
+To run the CLI dashboard:
 
 ```bash
 # On Windows PowerShell:

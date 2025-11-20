@@ -142,28 +142,44 @@ class HealthDashboardGUI:
         analysis_frame = ttk.LabelFrame(left_frame, text="📊 Analyze (Step 3)", padding="5")
         analysis_frame.pack(fill=tk.X, pady=5)
         
-        ttk.Button(analysis_frame, text="Summary Statistics", 
+        ttk.Button(analysis_frame, text="📊 Summary Statistics", 
                   command=self.show_summary).pack(fill=tk.X, pady=2)
-        ttk.Button(analysis_frame, text="Group & Aggregate", 
+        ttk.Button(analysis_frame, text="📈 Group & Aggregate", 
                   command=self.group_aggregate_gui).pack(fill=tk.X, pady=2)
+        ttk.Button(analysis_frame, text="🔗 Correlation Matrix", 
+                  command=self.show_correlation).pack(fill=tk.X, pady=2)
+        ttk.Button(analysis_frame, text="📋 Value Counts", 
+                  command=self.show_value_counts).pack(fill=tk.X, pady=2)
         
         # Visualization Section (Step 4)
         viz_frame = ttk.LabelFrame(left_frame, text="📈 Visualize (Step 4)", padding="5")
         viz_frame.pack(fill=tk.X, pady=5)
         
-        ttk.Button(viz_frame, text="Create Bar Chart", 
+        ttk.Button(viz_frame, text="📊 Bar Chart", 
                   command=self.create_bar_chart_gui).pack(fill=tk.X, pady=2)
-        ttk.Button(viz_frame, text="Create Line Chart", 
+        ttk.Button(viz_frame, text="📈 Line Chart", 
                   command=self.create_line_chart_gui).pack(fill=tk.X, pady=2)
+        ttk.Button(viz_frame, text="📉 Histogram", 
+                  command=self.create_histogram_gui).pack(fill=tk.X, pady=2)
+        ttk.Button(viz_frame, text="🥧 Pie Chart", 
+                  command=self.create_pie_chart_gui).pack(fill=tk.X, pady=2)
+        ttk.Button(viz_frame, text="🔵 Scatter Plot", 
+                  command=self.create_scatter_plot_gui).pack(fill=tk.X, pady=2)
+        ttk.Button(viz_frame, text="🗑️ Clear Chart", 
+                  command=self.clear_chart).pack(fill=tk.X, pady=2)
         
         # Cleaning Section (Step 2)
         clean_frame = ttk.LabelFrame(left_frame, text="🧹 Clean Data (Step 2)", padding="5")
         clean_frame.pack(fill=tk.X, pady=5)
         
-        ttk.Button(clean_frame, text="Detect Quality Issues", 
+        ttk.Button(clean_frame, text="🔍 Detect Quality Issues", 
                   command=self.detect_quality_issues).pack(fill=tk.X, pady=2)
-        ttk.Button(clean_frame, text="Remove Duplicates", 
+        ttk.Button(clean_frame, text="🗑️ Remove Duplicates", 
                   command=self.remove_duplicates).pack(fill=tk.X, pady=2)
+        ttk.Button(clean_frame, text="💊 Handle Missing Values", 
+                  command=self.handle_missing_gui).pack(fill=tk.X, pady=2)
+        ttk.Button(clean_frame, text="🔄 Full Cleaning Pipeline", 
+                  command=self.apply_full_cleaning).pack(fill=tk.X, pady=2)
         
         # CRUD Section (Step 5)
         crud_frame = ttk.LabelFrame(left_frame, text="💾 CRUD Operations (Step 5)", padding="5")
@@ -200,6 +216,7 @@ class HealthDashboardGUI:
         # Tab 2: Visualization
         self.viz_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.viz_frame, text="📊 Visualization")
+        self.setup_viz_tab()
         
         # Tab 3: Statistics
         self.stats_frame = ttk.Frame(self.notebook)
@@ -227,6 +244,25 @@ class HealthDashboardGUI:
             font=('Arial', 10)
         )
         self.data_info_label.pack(side=tk.BOTTOM, pady=5)
+    
+    def setup_viz_tab(self):
+        """Setup the visualization tab."""
+        # Container for chart
+        self.chart_container = ttk.Frame(self.viz_frame)
+        self.chart_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Placeholder label
+        self.viz_placeholder = ttk.Label(
+            self.chart_container,
+            text="📊 No chart generated yet\n\nUse 'Visualize' buttons to create charts\nThey will appear here!",
+            font=('Arial', 12),
+            justify=tk.CENTER
+        )
+        self.viz_placeholder.pack(expand=True)
+        
+        # Store current canvas
+        self.current_canvas = None
+        self.current_figure = None
     
     def setup_stats_tab(self):
         """Setup the statistics tab."""
@@ -606,19 +642,25 @@ class HealthDashboardGUI:
             
             if x_col and y_col:
                 try:
+                    # Clear existing chart
+                    self.clear_chart()
+                    
                     # Create chart
-                    fig, ax = plt.subplots(figsize=(10, 6))
+                    fig, ax = plt.subplots(figsize=(8, 5))
                     data_to_plot = self.df.head(20)  # Limit to 20 bars
-                    ax.bar(data_to_plot[x_col].astype(str), data_to_plot[y_col])
-                    ax.set_xlabel(x_col)
-                    ax.set_ylabel(y_col)
-                    ax.set_title(title)
-                    plt.xticks(rotation=45, ha='right')
+                    ax.bar(data_to_plot[x_col].astype(str), data_to_plot[y_col], color='steelblue')
+                    ax.set_xlabel(x_col, fontsize=10)
+                    ax.set_ylabel(y_col, fontsize=10)
+                    ax.set_title(title, fontsize=12, fontweight='bold')
+                    plt.xticks(rotation=45, ha='right', fontsize=9)
                     plt.tight_layout()
-                    plt.show()
+                    
+                    # Embed chart in GUI
+                    self.embed_chart(fig)
                     
                     self.logger.log("visualization", f"Created bar chart: {title}")
                     self.add_log(f"📊 Created bar chart: {title}")
+                    self.notebook.select(self.viz_frame)
                     dialog.destroy()
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
@@ -659,17 +701,24 @@ class HealthDashboardGUI:
             
             if x_col and y_col:
                 try:
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    ax.plot(self.df[x_col], self.df[y_col], marker='o')
-                    ax.set_xlabel(x_col)
-                    ax.set_ylabel(y_col)
-                    ax.set_title(title)
-                    plt.xticks(rotation=45, ha='right')
+                    # Clear existing chart
+                    self.clear_chart()
+                    
+                    fig, ax = plt.subplots(figsize=(8, 5))
+                    ax.plot(self.df[x_col], self.df[y_col], marker='o', linewidth=2, markersize=6, color='green')
+                    ax.set_xlabel(x_col, fontsize=10)
+                    ax.set_ylabel(y_col, fontsize=10)
+                    ax.set_title(title, fontsize=12, fontweight='bold')
+                    ax.grid(True, alpha=0.3)
+                    plt.xticks(rotation=45, ha='right', fontsize=9)
                     plt.tight_layout()
-                    plt.show()
+                    
+                    # Embed chart in GUI
+                    self.embed_chart(fig)
                     
                     self.logger.log("visualization", f"Created line chart: {title}")
                     self.add_log(f"📈 Created line chart: {title}")
+                    self.notebook.select(self.viz_frame)
                     dialog.destroy()
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
@@ -721,10 +770,91 @@ class HealthDashboardGUI:
             return
         
         if messagebox.askyesno("Confirm", f"Remove {duplicates} duplicate rows?"):
+            original_count = len(self.df)
             self.df = self.df.drop_duplicates()
             self.logger.log("data_cleaned", f"Removed {duplicates} duplicates")
-            self.add_log(f"🧹 Removed {duplicates} duplicate rows")
+            self.add_log(f"🗑️ Removed {duplicates} duplicate rows ({len(self.df)} remaining)")
             self.update_table()
+    
+    def handle_missing_gui(self):
+        """Handle missing values with user-selected strategy."""
+        if self.df is None:
+            messagebox.showinfo("No Data", "Please load data first.")
+            return
+        
+        # Check for missing values
+        missing = self.df.isnull().sum().sum()
+        if missing == 0:
+            messagebox.showinfo("No Missing Values", "No missing values found in the dataset.")
+            return
+        
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Handle Missing Values")
+        dialog.geometry("400x300")
+        
+        ttk.Label(dialog, text=f"Found {missing} missing values", font=('Arial', 10, 'bold')).pack(pady=10)
+        ttk.Label(dialog, text="Select strategy:").pack(pady=5)
+        
+        strategy_var = tk.StringVar(value="drop")
+        ttk.Radiobutton(dialog, text="Drop rows with missing values", 
+                       variable=strategy_var, value="drop").pack(pady=2)
+        ttk.Radiobutton(dialog, text="Fill with mean (numeric columns)", 
+                       variable=strategy_var, value="mean").pack(pady=2)
+        ttk.Radiobutton(dialog, text="Fill with median (numeric columns)", 
+                       variable=strategy_var, value="median").pack(pady=2)
+        ttk.Radiobutton(dialog, text="Forward fill", 
+                       variable=strategy_var, value="ffill").pack(pady=2)
+        
+        def apply_strategy():
+            strategy = strategy_var.get()
+            try:
+                from src.cleaning import handle_missing_values
+                original_count = len(self.df)
+                self.df = handle_missing_values(self.df, strategy=strategy)
+                self.logger.log("data_cleaned", f"Handled missing values with {strategy}")
+                self.add_log(f"💊 Applied {strategy} strategy ({len(self.df)} records remaining)")
+                self.update_table()
+                dialog.destroy()
+                messagebox.showinfo("Success", f"Missing values handled with {strategy} strategy!")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+        
+        ttk.Button(dialog, text="Apply", command=apply_strategy).pack(pady=10)
+        ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack(pady=5)
+    
+    def apply_full_cleaning(self):
+        """Apply full cleaning pipeline."""
+        if self.df is None:
+            messagebox.showinfo("No Data", "Please load data first.")
+            return
+        
+        if not messagebox.askyesno("Confirm", 
+                                   "This will apply a full cleaning pipeline:\n"
+                                   "- Remove duplicates\n"
+                                   "- Handle missing values (drop)\n\n"
+                                   "Continue?"):
+            return
+        
+        try:
+            original_count = len(self.df)
+            cleaner = DataCleaner(self.df)
+            self.df = (cleaner
+                      .remove_duplicates()
+                      .handle_missing(strategy='drop')
+                      .get_cleaned_data())
+            
+            report = cleaner.get_cleaning_report()
+            self.logger.log("data_cleaned", "Applied full cleaning pipeline")
+            self.add_log(f"🔄 Full cleaning: {original_count} → {len(self.df)} records")
+            self.update_table()
+            
+            messagebox.showinfo("Cleaning Complete", 
+                              f"Original records: {report['original_rows']}\n"
+                              f"Cleaned records: {report['cleaned_rows']}\n"
+                              f"Rows removed: {report['rows_removed']}")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
     
     def export_csv(self):
         """Export data to CSV."""
@@ -834,6 +964,318 @@ class HealthDashboardGUI:
             self.add_log("📊 Viewed activity log statistics")
         except Exception as e:
             messagebox.showerror("Error", str(e))
+    
+    def show_correlation(self):
+        """Show correlation matrix."""
+        if self.df is None:
+            messagebox.showinfo("No Data", "Please load data first.")
+            return
+        
+        numeric_cols = self.df.select_dtypes(include=['number']).columns
+        if len(numeric_cols) < 2:
+            messagebox.showinfo("Insufficient Columns", "Need at least 2 numeric columns.")
+            return
+        
+        try:
+            # Clear existing chart
+            self.clear_chart()
+            
+            # Calculate correlation
+            corr = self.df[numeric_cols].corr()
+            
+            # Create heatmap
+            fig, ax = plt.subplots(figsize=(8, 6))
+            im = ax.imshow(corr, cmap='coolwarm', aspect='auto', vmin=-1, vmax=1)
+            
+            # Set ticks and labels
+            ax.set_xticks(range(len(corr.columns)))
+            ax.set_yticks(range(len(corr.columns)))
+            ax.set_xticklabels(corr.columns, rotation=45, ha='right', fontsize=9)
+            ax.set_yticklabels(corr.columns, fontsize=9)
+            
+            # Add colorbar
+            cbar = plt.colorbar(im, ax=ax)
+            cbar.set_label('Correlation', rotation=270, labelpad=15)
+            
+            # Add correlation values
+            for i in range(len(corr.columns)):
+                for j in range(len(corr.columns)):
+                    text = ax.text(j, i, f'{corr.iloc[i, j]:.2f}',
+                                 ha="center", va="center", color="black", fontsize=8)
+            
+            ax.set_title('Correlation Matrix', fontsize=12, fontweight='bold')
+            plt.tight_layout()
+            
+            # Embed chart
+            self.embed_chart(fig)
+            
+            self.logger.log("analysis", "Viewed correlation matrix")
+            self.add_log("🔗 Correlation matrix displayed")
+            self.notebook.select(self.viz_frame)
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+    
+    def show_value_counts(self):
+        """Show value counts for a column."""
+        if self.df is None:
+            messagebox.showinfo("No Data", "Please load data first.")
+            return
+        
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Value Counts")
+        dialog.geometry("400x250")
+        
+        ttk.Label(dialog, text="Select Column:").pack(pady=5)
+        col_var = tk.StringVar()
+        col_combo = ttk.Combobox(dialog, textvariable=col_var, values=list(self.df.columns))
+        col_combo.pack(pady=5)
+        
+        def show_counts():
+            col = col_var.get()
+            if col:
+                try:
+                    counts = self.df[col].value_counts().head(20)
+                    
+                    result = f"Value Counts for '{col}':\n"
+                    result += "="*40 + "\n\n"
+                    for value, count in counts.items():
+                        result += f"{value}: {count}\n"
+                    
+                    if len(self.df[col].value_counts()) > 20:
+                        result += f"\n... and {len(self.df[col].value_counts()) - 20} more"
+                    
+                    messagebox.showinfo("Value Counts", result)
+                    self.logger.log("analysis", f"Viewed value counts for {col}")
+                    self.add_log(f"📋 Value counts for {col}")
+                    dialog.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+        
+        ttk.Button(dialog, text="Show Counts", command=show_counts).pack(pady=10)
+        ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack(pady=5)
+    
+    def create_histogram_gui(self):
+        """Create a histogram."""
+        if self.df is None:
+            messagebox.showinfo("No Data", "Please load data first.")
+            return
+        
+        numeric_cols = self.df.select_dtypes(include=['number']).columns.tolist()
+        if not numeric_cols:
+            messagebox.showinfo("No Numeric Columns", "No numeric columns available.")
+            return
+        
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Create Histogram")
+        dialog.geometry("400x300")
+        
+        ttk.Label(dialog, text="Select Column:").pack(pady=5)
+        col_var = tk.StringVar()
+        col_combo = ttk.Combobox(dialog, textvariable=col_var, values=numeric_cols)
+        col_combo.pack(pady=5)
+        
+        ttk.Label(dialog, text="Number of Bins (optional):").pack(pady=5)
+        bins_entry = ttk.Entry(dialog, width=30)
+        bins_entry.insert(0, "20")
+        bins_entry.pack(pady=5)
+        
+        ttk.Label(dialog, text="Chart Title:").pack(pady=5)
+        title_entry = ttk.Entry(dialog, width=30)
+        title_entry.pack(pady=5)
+        
+        def create_chart():
+            col = col_var.get()
+            bins_str = bins_entry.get()
+            title = title_entry.get() or f"Distribution of {col}"
+            
+            if col:
+                try:
+                    bins = int(bins_str) if bins_str else 20
+                    
+                    # Clear existing chart
+                    self.clear_chart()
+                    
+                    fig, ax = plt.subplots(figsize=(8, 5))
+                    ax.hist(self.df[col].dropna(), bins=bins, color='purple', edgecolor='black', alpha=0.7)
+                    ax.set_xlabel(col, fontsize=10)
+                    ax.set_ylabel('Frequency', fontsize=10)
+                    ax.set_title(title, fontsize=12, fontweight='bold')
+                    ax.grid(True, alpha=0.3, axis='y')
+                    plt.tight_layout()
+                    
+                    # Embed chart in GUI
+                    self.embed_chart(fig)
+                    
+                    self.logger.log("visualization", f"Created histogram: {title}")
+                    self.add_log(f"📉 Created histogram: {title}")
+                    self.notebook.select(self.viz_frame)
+                    dialog.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+        
+        ttk.Button(dialog, text="Create Chart", command=create_chart).pack(pady=10)
+        ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack(pady=5)
+    
+    def create_pie_chart_gui(self):
+        """Create a pie chart."""
+        if self.df is None:
+            messagebox.showinfo("No Data", "Please load data first.")
+            return
+        
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Create Pie Chart")
+        dialog.geometry("400x350")
+        
+        ttk.Label(dialog, text="Category Column:").pack(pady=5)
+        cat_var = tk.StringVar()
+        cat_combo = ttk.Combobox(dialog, textvariable=cat_var, values=list(self.df.columns))
+        cat_combo.pack(pady=5)
+        
+        numeric_cols = self.df.select_dtypes(include=['number']).columns.tolist()
+        ttk.Label(dialog, text="Value Column (optional):").pack(pady=5)
+        val_var = tk.StringVar()
+        val_combo = ttk.Combobox(dialog, textvariable=val_var, values=['Count'] + numeric_cols)
+        val_combo.set('Count')
+        val_combo.pack(pady=5)
+        
+        ttk.Label(dialog, text="Chart Title:").pack(pady=5)
+        title_entry = ttk.Entry(dialog, width=30)
+        title_entry.pack(pady=5)
+        
+        def create_chart():
+            cat_col = cat_var.get()
+            val_col = val_var.get()
+            title = title_entry.get() or f"Distribution by {cat_col}"
+            
+            if cat_col:
+                try:
+                    # Clear existing chart
+                    self.clear_chart()
+                    
+                    # Prepare data
+                    if val_col == 'Count' or not val_col:
+                        data = self.df[cat_col].value_counts()
+                    else:
+                        data = self.df.groupby(cat_col)[val_col].sum()
+                    
+                    # Limit to top 10 for readability
+                    if len(data) > 10:
+                        data = data.nlargest(10)
+                    
+                    fig, ax = plt.subplots(figsize=(8, 5))
+                    wedges, texts, autotexts = ax.pie(data.values, labels=data.index, autopct='%1.1f%%',
+                                                       startangle=90, textprops={'fontsize': 9})
+                    ax.set_title(title, fontsize=12, fontweight='bold')
+                    plt.tight_layout()
+                    
+                    # Embed chart in GUI
+                    self.embed_chart(fig)
+                    
+                    self.logger.log("visualization", f"Created pie chart: {title}")
+                    self.add_log(f"🥧 Created pie chart: {title}")
+                    self.notebook.select(self.viz_frame)
+                    dialog.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+        
+        ttk.Button(dialog, text="Create Chart", command=create_chart).pack(pady=10)
+        ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack(pady=5)
+    
+    def create_scatter_plot_gui(self):
+        """Create a scatter plot."""
+        if self.df is None:
+            messagebox.showinfo("No Data", "Please load data first.")
+            return
+        
+        numeric_cols = self.df.select_dtypes(include=['number']).columns.tolist()
+        if len(numeric_cols) < 2:
+            messagebox.showinfo("Insufficient Columns", "Need at least 2 numeric columns.")
+            return
+        
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Create Scatter Plot")
+        dialog.geometry("400x350")
+        
+        ttk.Label(dialog, text="X-axis:").pack(pady=5)
+        x_var = tk.StringVar()
+        x_combo = ttk.Combobox(dialog, textvariable=x_var, values=numeric_cols)
+        x_combo.pack(pady=5)
+        
+        ttk.Label(dialog, text="Y-axis:").pack(pady=5)
+        y_var = tk.StringVar()
+        y_combo = ttk.Combobox(dialog, textvariable=y_var, values=numeric_cols)
+        y_combo.pack(pady=5)
+        
+        ttk.Label(dialog, text="Chart Title:").pack(pady=5)
+        title_entry = ttk.Entry(dialog, width=30)
+        title_entry.pack(pady=5)
+        
+        def create_chart():
+            x_col = x_var.get()
+            y_col = y_var.get()
+            title = title_entry.get() or f"{y_col} vs {x_col}"
+            
+            if x_col and y_col:
+                try:
+                    # Clear existing chart
+                    self.clear_chart()
+                    
+                    fig, ax = plt.subplots(figsize=(8, 5))
+                    ax.scatter(self.df[x_col], self.df[y_col], alpha=0.6, s=50, color='coral')
+                    ax.set_xlabel(x_col, fontsize=10)
+                    ax.set_ylabel(y_col, fontsize=10)
+                    ax.set_title(title, fontsize=12, fontweight='bold')
+                    ax.grid(True, alpha=0.3)
+                    plt.tight_layout()
+                    
+                    # Embed chart in GUI
+                    self.embed_chart(fig)
+                    
+                    self.logger.log("visualization", f"Created scatter plot: {title}")
+                    self.add_log(f"🔵 Created scatter plot: {title}")
+                    self.notebook.select(self.viz_frame)
+                    dialog.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+        
+        ttk.Button(dialog, text="Create Chart", command=create_chart).pack(pady=10)
+        ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack(pady=5)
+    
+    def clear_chart(self):
+        """Clear the current chart from visualization tab."""
+        if self.current_canvas:
+            self.current_canvas.get_tk_widget().destroy()
+            self.current_canvas = None
+        if self.current_figure:
+            plt.close(self.current_figure)
+            self.current_figure = None
+        if self.viz_placeholder and self.viz_placeholder.winfo_exists():
+            self.viz_placeholder.destroy()
+        
+        # Recreate placeholder
+        self.viz_placeholder = ttk.Label(
+            self.chart_container,
+            text="📊 Chart cleared\n\nCreate a new visualization!",
+            font=('Arial', 12),
+            justify=tk.CENTER
+        )
+        self.viz_placeholder.pack(expand=True)
+        self.add_log("🗑️ Chart cleared")
+    
+    def embed_chart(self, figure):
+        """Embed a matplotlib figure in the visualization tab."""
+        # Clear any existing chart
+        self.clear_chart()
+        
+        # Create canvas
+        self.current_figure = figure
+        self.current_canvas = FigureCanvasTkAgg(figure, master=self.chart_container)
+        self.current_canvas.draw()
+        self.current_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
     
     def on_closing(self):
         """Handle window closing."""

@@ -46,7 +46,10 @@ class HealthDashboardGUI:
         """Initialize the GUI."""
         self.root = root
         self.root.title("Public Health Data Insights Dashboard")
-        self.root.geometry("1200x800")
+        self.root.geometry("1400x900")  # Larger window for better visibility
+        
+        # Make window resizable
+        self.root.minsize(1000, 700)
         
         # Data storage
         self.df = None
@@ -99,105 +102,153 @@ class HealthDashboardGUI:
         self.setup_bottom_panel(main_frame)
     
     def setup_left_panel(self, parent):
-        """Setup the left control panel."""
-        left_frame = ttk.LabelFrame(parent, text="Controls", padding="10")
-        left_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        """Setup the left control panel with scrollbar."""
+        # Create a frame for the left panel with scrollbar
+        left_container = ttk.LabelFrame(parent, text="Controls", padding="5")
+        left_container.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        
+        # Create canvas and scrollbar
+        canvas = tk.Canvas(left_container, width=200, bg='white', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(left_container, orient="vertical", command=canvas.yview)
+        
+        # Create frame inside canvas for content
+        left_frame = ttk.Frame(canvas)
+        
+        # Configure canvas
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack scrollbar and canvas
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Create window in canvas
+        canvas_frame = canvas.create_window((0, 0), window=left_frame, anchor="nw")
+        
+        # Configure scroll region when content changes
+        def configure_scroll_region(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Make sure the canvas width matches the frame width
+            canvas.itemconfig(canvas_frame, width=canvas.winfo_width())
+        
+        left_frame.bind("<Configure>", configure_scroll_region)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_frame, width=e.width))
+        
+        # Enable mousewheel scrolling
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind mousewheel to canvas and all its children
+        def bind_mousewheel(widget):
+            widget.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", on_mousewheel))
+            widget.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+            for child in widget.winfo_children():
+                bind_mousewheel(child)
+        
+        bind_mousewheel(left_frame)
+        
+        # Add scroll indicator at top
+        scroll_hint = ttk.Label(left_frame, text="⬇️ Scroll down for more options ⬇️", 
+                               font=('Arial', 8, 'italic'), foreground='blue')
+        scroll_hint.pack(pady=3)
         
         # Data Loading Section
-        load_frame = ttk.LabelFrame(left_frame, text="📂 Data Loading (Step 1)", padding="5")
-        load_frame.pack(fill=tk.X, pady=5)
+        load_frame = ttk.LabelFrame(left_frame, text="📂 Data Loading (Step 1)", padding="3")
+        load_frame.pack(fill=tk.X, pady=3)
         
         ttk.Button(load_frame, text="Load CSV File", 
-                  command=self.load_csv).pack(fill=tk.X, pady=2)
+                  command=self.load_csv).pack(fill=tk.X, pady=1)
         ttk.Button(load_frame, text="Load JSON File", 
-                  command=self.load_json).pack(fill=tk.X, pady=2)
+                  command=self.load_json).pack(fill=tk.X, pady=1)
         ttk.Button(load_frame, text="Load Sample Vaccination Data", 
-                  command=self.load_sample_vaccination).pack(fill=tk.X, pady=2)
+                  command=self.load_sample_vaccination).pack(fill=tk.X, pady=1)
         ttk.Button(load_frame, text="Load Sample Outbreak Data", 
-                  command=self.load_sample_outbreak).pack(fill=tk.X, pady=2)
+                  command=self.load_sample_outbreak).pack(fill=tk.X, pady=1)
         
         # Data Viewing Section
-        view_frame = ttk.LabelFrame(left_frame, text="👁️ View Data", padding="5")
-        view_frame.pack(fill=tk.X, pady=5)
+        view_frame = ttk.LabelFrame(left_frame, text="👁️ View Data", padding="3")
+        view_frame.pack(fill=tk.X, pady=3)
         
         ttk.Button(view_frame, text="View All Data", 
-                  command=self.view_data).pack(fill=tk.X, pady=2)
+                  command=self.view_data).pack(fill=tk.X, pady=1)
         ttk.Button(view_frame, text="View Statistics", 
-                  command=self.view_statistics).pack(fill=tk.X, pady=2)
+                  command=self.view_statistics).pack(fill=tk.X, pady=1)
         ttk.Button(view_frame, text="View Data Info", 
-                  command=self.view_info).pack(fill=tk.X, pady=2)
+                  command=self.view_info).pack(fill=tk.X, pady=1)
         
         # Filtering Section (Step 3)
-        filter_frame = ttk.LabelFrame(left_frame, text="🔍 Filter Data (Step 3)", padding="5")
-        filter_frame.pack(fill=tk.X, pady=5)
+        filter_frame = ttk.LabelFrame(left_frame, text="🔍 Filter Data (Step 3)", padding="3")
+        filter_frame.pack(fill=tk.X, pady=3)
         
         ttk.Button(filter_frame, text="Filter by Column", 
-                  command=self.filter_by_column_gui).pack(fill=tk.X, pady=2)
+                  command=self.filter_by_column_gui).pack(fill=tk.X, pady=1)
         ttk.Button(filter_frame, text="Filter by Numeric Range", 
-                  command=self.filter_by_range_gui).pack(fill=tk.X, pady=2)
+                  command=self.filter_by_range_gui).pack(fill=tk.X, pady=1)
         ttk.Button(filter_frame, text="Reset Filters", 
-                  command=self.reset_filters).pack(fill=tk.X, pady=2)
+                  command=self.reset_filters).pack(fill=tk.X, pady=1)
         
         # Analysis Section (Step 3)
-        analysis_frame = ttk.LabelFrame(left_frame, text="📊 Analyze (Step 3)", padding="5")
-        analysis_frame.pack(fill=tk.X, pady=5)
+        analysis_frame = ttk.LabelFrame(left_frame, text="📊 Analyze (Step 3)", padding="3")
+        analysis_frame.pack(fill=tk.X, pady=3)
         
         ttk.Button(analysis_frame, text="📊 Summary Statistics", 
-                  command=self.show_summary).pack(fill=tk.X, pady=2)
+                  command=self.show_summary).pack(fill=tk.X, pady=1)
         ttk.Button(analysis_frame, text="📈 Group & Aggregate", 
-                  command=self.group_aggregate_gui).pack(fill=tk.X, pady=2)
+                  command=self.group_aggregate_gui).pack(fill=tk.X, pady=1)
         ttk.Button(analysis_frame, text="🔗 Correlation Matrix", 
-                  command=self.show_correlation).pack(fill=tk.X, pady=2)
+                  command=self.show_correlation).pack(fill=tk.X, pady=1)
         ttk.Button(analysis_frame, text="📋 Value Counts", 
-                  command=self.show_value_counts).pack(fill=tk.X, pady=2)
+                  command=self.show_value_counts).pack(fill=tk.X, pady=1)
         
         # Visualization Section (Step 4)
-        viz_frame = ttk.LabelFrame(left_frame, text="📈 Visualize (Step 4)", padding="5")
-        viz_frame.pack(fill=tk.X, pady=5)
+        viz_frame = ttk.LabelFrame(left_frame, text="📈 Visualize (Step 4)", padding="3")
+        viz_frame.pack(fill=tk.X, pady=3)
         
         ttk.Button(viz_frame, text="📊 Bar Chart", 
-                  command=self.create_bar_chart_gui).pack(fill=tk.X, pady=2)
+                  command=self.create_bar_chart_gui).pack(fill=tk.X, pady=1)
         ttk.Button(viz_frame, text="📈 Line Chart", 
-                  command=self.create_line_chart_gui).pack(fill=tk.X, pady=2)
+                  command=self.create_line_chart_gui).pack(fill=tk.X, pady=1)
         ttk.Button(viz_frame, text="📉 Histogram", 
-                  command=self.create_histogram_gui).pack(fill=tk.X, pady=2)
+                  command=self.create_histogram_gui).pack(fill=tk.X, pady=1)
         ttk.Button(viz_frame, text="🥧 Pie Chart", 
-                  command=self.create_pie_chart_gui).pack(fill=tk.X, pady=2)
+                  command=self.create_pie_chart_gui).pack(fill=tk.X, pady=1)
         ttk.Button(viz_frame, text="🔵 Scatter Plot", 
-                  command=self.create_scatter_plot_gui).pack(fill=tk.X, pady=2)
+                  command=self.create_scatter_plot_gui).pack(fill=tk.X, pady=1)
         ttk.Button(viz_frame, text="🗑️ Clear Chart", 
-                  command=self.clear_chart).pack(fill=tk.X, pady=2)
+                  command=self.clear_chart).pack(fill=tk.X, pady=1)
         
         # Cleaning Section (Step 2)
-        clean_frame = ttk.LabelFrame(left_frame, text="🧹 Clean Data (Step 2)", padding="5")
-        clean_frame.pack(fill=tk.X, pady=5)
+        clean_frame = ttk.LabelFrame(left_frame, text="🧹 Clean Data (Step 2)", padding="3")
+        clean_frame.pack(fill=tk.X, pady=3)
         
         ttk.Button(clean_frame, text="🔍 Detect Quality Issues", 
-                  command=self.detect_quality_issues).pack(fill=tk.X, pady=2)
+                  command=self.detect_quality_issues).pack(fill=tk.X, pady=1)
         ttk.Button(clean_frame, text="🗑️ Remove Duplicates", 
-                  command=self.remove_duplicates).pack(fill=tk.X, pady=2)
+                  command=self.remove_duplicates).pack(fill=tk.X, pady=1)
         ttk.Button(clean_frame, text="💊 Handle Missing Values", 
-                  command=self.handle_missing_gui).pack(fill=tk.X, pady=2)
+                  command=self.handle_missing_gui).pack(fill=tk.X, pady=1)
         ttk.Button(clean_frame, text="🔄 Full Cleaning Pipeline", 
-                  command=self.apply_full_cleaning).pack(fill=tk.X, pady=2)
+                  command=self.apply_full_cleaning).pack(fill=tk.X, pady=1)
         
         # CRUD Section (Step 5)
-        crud_frame = ttk.LabelFrame(left_frame, text="💾 CRUD Operations (Step 5)", padding="5")
-        crud_frame.pack(fill=tk.X, pady=5)
+        crud_frame = ttk.LabelFrame(left_frame, text="💾 CRUD Operations (Step 5)", padding="3")
+        crud_frame.pack(fill=tk.X, pady=3)
         
         ttk.Button(crud_frame, text="Manage Database", 
-                  command=self.open_crud_window).pack(fill=tk.X, pady=2)
+                  command=self.open_crud_window).pack(fill=tk.X, pady=1)
         ttk.Button(crud_frame, text="View Activity Log", 
-                  command=self.view_activity_log).pack(fill=tk.X, pady=2)
+                  command=self.view_activity_log).pack(fill=tk.X, pady=1)
         
         # Export Section
-        export_frame = ttk.LabelFrame(left_frame, text="💾 Export", padding="5")
-        export_frame.pack(fill=tk.X, pady=5)
+        export_frame = ttk.LabelFrame(left_frame, text="💾 Export", padding="3")
+        export_frame.pack(fill=tk.X, pady=3)
+        
+        # Add padding at bottom for better scrolling
+        ttk.Label(left_frame, text="").pack(pady=10)
         
         ttk.Button(export_frame, text="Export to CSV", 
-                  command=self.export_csv).pack(fill=tk.X, pady=2)
+                  command=self.export_csv).pack(fill=tk.X, pady=1)
         ttk.Button(export_frame, text="Export to Database", 
-                  command=self.export_database).pack(fill=tk.X, pady=2)
+                  command=self.export_database).pack(fill=tk.X, pady=1)
     
     def setup_right_panel(self, parent):
         """Setup the right data display panel."""

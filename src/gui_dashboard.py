@@ -67,6 +67,91 @@ class HealthDashboardGUI:
         # Log session start
         self.logger.log("session_start", "GUI Dashboard started")
         self.add_log("Dashboard started. Welcome!")
+        
+        # Initialize database from CSV files (if needed)
+        self.root.after(100, self.initialize_database)
+    
+    def initialize_database(self):
+        """Initialize database from CSV files on first launch."""
+        try:
+            db_path = Path("data/health_data.db")
+            
+            # Check if database already exists and has data
+            if db_path.exists():
+                from src.crud import list_tables
+                try:
+                    tables = list_tables(str(db_path))
+                    if tables and len(tables) > 0:
+                        self.add_log(f"✓ Database ready ({len(tables)} tables)")
+                        return  # Database exists and has tables, don't recreate
+                except:
+                    pass  # Database might be corrupted, recreate it
+            
+            # Create database directory if it doesn't exist
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            self.add_log("📂 Creating database from CSV files...")
+            
+            # Load CSV files and create database tables
+            csv_files = {
+                "country_wise_latest": "data/country_wise_latest.csv",
+                "covid_19_complete": "data/covid_19_clean_complete.csv",
+                "day_wise": "data/day_wise.csv",
+                "full_grouped": "data/full_grouped.csv",
+                "usa_county_wise": "data/usa_county_wise.csv",
+                "worldometer_data": "data/worldometer_data.csv"
+            }
+            
+            tables_created = 0
+            for table_name, csv_path in csv_files.items():
+                csv_file = Path(csv_path)
+                if csv_file.exists():
+                    try:
+                        # Load CSV
+                        df = pd.read_csv(csv_file, low_memory=False)
+                        
+                        # Limit rows for very large files (optional)
+                        if len(df) > 10000 and table_name == "usa_county_wise":
+                            # For usa_county_wise, take more recent data
+                            df = df.tail(50000)  # Keep last 50k rows
+                            self.add_log(f"  - Loading {table_name} (limited to recent 50k rows)...")
+                        else:
+                            self.add_log(f"  - Loading {table_name} ({len(df)} rows)...")
+                        
+                        # Save to database
+                        load_to_database(df, str(db_path), table_name, if_exists='replace')
+                        tables_created += 1
+                        
+                    except Exception as e:
+                        self.add_log(f"  ⚠ Error loading {csv_path}: {str(e)}")
+                else:
+                    self.add_log(f"  ⚠ CSV not found: {csv_path}")
+            
+            if tables_created > 0:
+                self.add_log(f"✓ Database created with {tables_created} tables!")
+                self.add_log(f"  Location: {db_path}")
+                self.logger.log("database_init", f"Created database with {tables_created} tables")
+                
+                # Show success message
+                self.root.after(500, lambda: messagebox.showinfo(
+                    "Database Ready",
+                    f"✓ Database initialized successfully!\n\n"
+                    f"Created {tables_created} tables from CSV files:\n"
+                    f"  • country_wise_latest\n"
+                    f"  • covid_19_complete\n"
+                    f"  • day_wise\n"
+                    f"  • full_grouped\n"
+                    f"  • usa_county_wise\n"
+                    f"  • worldometer_data\n\n"
+                    f"Location: {db_path}\n\n"
+                    f"Click '💾 Full Database Manager' to explore!"
+                ))
+            else:
+                self.add_log("⚠ No CSV files found - database not created")
+                
+        except Exception as e:
+            self.add_log(f"❌ Error initializing database: {str(e)}")
+            self.logger.log("error", f"Database initialization failed: {str(e)}", level="ERROR")
     
     def setup_ui(self):
         """Setup the user interface."""
@@ -233,9 +318,17 @@ class HealthDashboardGUI:
         crud_frame = ttk.LabelFrame(left_frame, text="💾 CRUD Operations (Step 5)", padding="3")
         crud_frame.pack(fill=tk.X, pady=3)
         
-        ttk.Button(crud_frame, text="Manage Database", 
+        ttk.Button(crud_frame, text="💾 Full Database Manager", 
                   command=self.open_crud_window).pack(fill=tk.X, pady=1)
-        ttk.Button(crud_frame, text="View Activity Log", 
+        ttk.Button(crud_frame, text="➕ Quick Create Record", 
+                  command=self.quick_create_record).pack(fill=tk.X, pady=1)
+        ttk.Button(crud_frame, text="📖 Quick Read Records", 
+                  command=self.quick_read_records).pack(fill=tk.X, pady=1)
+        ttk.Button(crud_frame, text="✏️ Quick Update Record", 
+                  command=self.quick_update_record).pack(fill=tk.X, pady=1)
+        ttk.Button(crud_frame, text="🗑️ Quick Delete Record", 
+                  command=self.quick_delete_record).pack(fill=tk.X, pady=1)
+        ttk.Button(crud_frame, text="📊 View Activity Log", 
                   command=self.view_activity_log).pack(fill=tk.X, pady=1)
         
         # Export Section
@@ -978,18 +1071,608 @@ class HealthDashboardGUI:
         ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack(pady=5)
     
     def open_crud_window(self):
-        """Open CRUD management window."""
-        messagebox.showinfo(
-            "CRUD Operations",
-            "CRUD Database Management\n\n"
-            "Features:\n"
-            "• Create records\n"
-            "• Read/Query data\n"
-            "• Update records\n"
-            "• Delete records\n\n"
-            "Use the CLI version (python src/dashboard.py)\n"
-            "for full CRUD functionality."
+        """Open comprehensive CRUD management window with form-based interface."""
+        crud_window = tk.Toplevel(self.root)
+        crud_window.title("💾 Database Management")
+        crud_window.geometry("1400x800")  # Wider window to show both panels
+        
+        # Make window modal
+        crud_window.transient(self.root)
+        crud_window.grab_set()
+        
+        # Main container
+        main_container = ttk.Frame(crud_window, padding="10")
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        title = ttk.Label(
+            main_container,
+            text="💾 Database Management - Point & Click Interface",
+            font=('Arial', 14, 'bold')
         )
+        title.pack(pady=(0, 10))
+        
+        # Store current table columns for form generation
+        self.crud_columns = []
+        self.crud_selected_record = None
+        
+        # Database selection
+        db_frame = ttk.LabelFrame(main_container, text="📂 Database & Table Selection", padding="5")
+        db_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(db_frame, text="Database:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        # Use the auto-created database
+        default_db = "data/health_data.db"
+        db_path_var = tk.StringVar(value=default_db)
+        db_entry = ttk.Entry(db_frame, textvariable=db_path_var, width=45)
+        db_entry.grid(row=0, column=1, padx=5)
+        
+        def browse_database():
+            filename = filedialog.askopenfilename(
+                title="Select Database",
+                filetypes=[("Database files", "*.db"), ("All files", "*.*")]
+            )
+            if filename:
+                db_path_var.set(filename)
+                refresh_tables()
+        
+        ttk.Button(db_frame, text="📁 Browse...", command=browse_database).grid(row=0, column=2, padx=5)
+        
+        # Table selection
+        ttk.Label(db_frame, text="Table:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        table_var = tk.StringVar()
+        table_combo = ttk.Combobox(db_frame, textvariable=table_var, width=43, state='readonly')
+        table_combo.grid(row=1, column=1, padx=5, pady=5)
+        table_combo.bind('<<ComboboxSelected>>', lambda e: load_table_data())
+        
+        def refresh_tables():
+            try:
+                from src.crud import list_tables
+                db_path = db_path_var.get()
+                if Path(db_path).exists():
+                    tables = list_tables(db_path)
+                    table_combo['values'] = tables
+                    if tables:
+                        table_combo.set(tables[0])
+                        table_var.set(tables[0])
+                        load_table_data()
+                else:
+                    messagebox.showwarning("Database Not Found", f"Database not found:\n{db_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to list tables:\n{str(e)}")
+        
+        ttk.Button(db_frame, text="🔄 Refresh", command=refresh_tables).grid(row=1, column=2, padx=5)
+        
+        # Main content area - split into data view and action buttons
+        content_frame = ttk.Frame(main_container)
+        content_frame.pack(fill=tk.BOTH, expand=True)
+        content_frame.columnconfigure(0, weight=3)  # Left panel gets 75% width
+        content_frame.columnconfigure(1, weight=1)  # Right panel gets 25% width
+        content_frame.rowconfigure(0, weight=1)
+        
+        # Left side - Data View
+        left_panel = ttk.LabelFrame(content_frame, text="📋 Records in Table", padding="5")
+        left_panel.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.E, tk.W), padx=(0, 5))
+        
+        # Filter controls
+        filter_frame = ttk.Frame(left_panel)
+        filter_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(filter_frame, text="🔍 Search:").pack(side=tk.LEFT, padx=5)
+        search_var = tk.StringVar()
+        search_entry = ttk.Entry(filter_frame, textvariable=search_var, width=30)
+        search_entry.pack(side=tk.LEFT, padx=5)
+        
+        def apply_search():
+            load_table_data(search=search_var.get())
+        
+        ttk.Button(filter_frame, text="Search", command=apply_search).pack(side=tk.LEFT, padx=5)
+        ttk.Button(filter_frame, text="Clear", command=lambda: (search_var.set(""), load_table_data())).pack(side=tk.LEFT, padx=5)
+        
+        # Data view with scrollbars
+        data_container = ttk.Frame(left_panel)
+        data_container.pack(fill=tk.BOTH, expand=True)
+        
+        tree_scroll_y = ttk.Scrollbar(data_container)
+        tree_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        tree_scroll_x = ttk.Scrollbar(data_container, orient=tk.HORIZONTAL)
+        tree_scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        data_tree = ttk.Treeview(
+            data_container,
+            yscrollcommand=tree_scroll_y.set,
+            xscrollcommand=tree_scroll_x.set,
+            selectmode='browse',
+            height=15
+        )
+        data_tree.pack(fill=tk.BOTH, expand=True)
+        tree_scroll_y.config(command=data_tree.yview)
+        tree_scroll_x.config(command=data_tree.xview)
+        
+        # Info label
+        info_label = ttk.Label(left_panel, text="Select a record to edit or delete", font=('Arial', 9, 'italic'))
+        info_label.pack(pady=5)
+        
+        # Right side - Actions and Form (ALWAYS VISIBLE)
+        right_panel = ttk.Frame(content_frame, width=450)
+        right_panel.grid(row=0, column=1, sticky=(tk.N, tk.S, tk.E, tk.W), padx=(5, 0))
+        right_panel.grid_propagate(False)  # Keep fixed width
+        
+        # Action buttons (functions defined below) - Using larger, more visible buttons
+        action_frame = ttk.LabelFrame(right_panel, text="⚡ CRUD Actions", padding="15")
+        action_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Create buttons with larger padding and explicit styling
+        btn_style = {'width': 25, 'padding': (10, 5)}
+        
+        add_btn = ttk.Button(action_frame, text="➕ Add New Record", 
+                            style='Accent.TButton' if hasattr(ttk, 'Style') else '')
+        add_btn.pack(fill=tk.X, pady=5, ipady=5)
+        
+        edit_btn = ttk.Button(action_frame, text="✏️ Edit Selected Record")
+        edit_btn.pack(fill=tk.X, pady=5, ipady=5)
+        
+        delete_btn = ttk.Button(action_frame, text="🗑️ Delete Selected Record")
+        delete_btn.pack(fill=tk.X, pady=5, ipady=5)
+        
+        refresh_btn = ttk.Button(action_frame, text="🔄 Refresh Data")
+        refresh_btn.pack(fill=tk.X, pady=5, ipady=5)
+        
+        info_btn = ttk.Button(action_frame, text="ℹ️ Table Info")
+        info_btn.pack(fill=tk.X, pady=5, ipady=5)
+        
+        # Add instructions label
+        instructions = ttk.Label(action_frame, 
+                                text="💡 Select a record from the table,\nthen use buttons above",
+                                font=('Arial', 9, 'italic'),
+                                justify=tk.CENTER,
+                                foreground='blue')
+        instructions.pack(pady=5)
+        
+        # Add a separator
+        ttk.Separator(right_panel, orient='horizontal').pack(fill=tk.X, pady=10)
+        
+        # Form container (will be populated dynamically)
+        form_container = ttk.LabelFrame(right_panel, text="📝 Form (Fill & Save)", padding="10")
+        form_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Scrollable form area
+        form_canvas = tk.Canvas(form_container, bg='white', highlightthickness=0)
+        form_scroll = ttk.Scrollbar(form_container, orient="vertical", command=form_canvas.yview)
+        form_frame = ttk.Frame(form_canvas)
+        
+        form_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        form_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        form_canvas.configure(yscrollcommand=form_scroll.set)
+        
+        form_window = form_canvas.create_window((0, 0), window=form_frame, anchor="nw")
+        
+        def configure_form_scroll(event):
+            form_canvas.configure(scrollregion=form_canvas.bbox("all"))
+            form_canvas.itemconfig(form_window, width=event.width)
+        
+        form_frame.bind("<Configure>", configure_form_scroll)
+        form_canvas.bind("<Configure>", lambda e: form_canvas.itemconfig(form_window, width=e.width))
+        
+        # Store form fields
+        form_fields = {}
+        
+        def load_table_data(search=None):
+            """Load data from the selected table."""
+            table = table_var.get()
+            db_path = db_path_var.get()
+            
+            if not table:
+                return
+            
+            try:
+                from src.crud import read_records, get_table_info
+                
+                # Get table info to store columns
+                table_info = get_table_info(db_path, table)
+                self.crud_columns = table_info['columns']
+                
+                # Build WHERE clause for search
+                where = None
+                if search and search.strip():
+                    # Search across all text columns
+                    search_conditions = []
+                    for col in self.crud_columns:
+                        if col['type'].upper() in ['TEXT', 'VARCHAR', 'CHAR']:
+                            search_conditions.append(f"{col['name']} LIKE '%{search}%'")
+                    if search_conditions:
+                        where = ' OR '.join(search_conditions)
+                
+                df = read_records(db_path, table, where=where, limit=500)
+                
+                # Clear existing data
+                for item in data_tree.get_children():
+                    data_tree.delete(item)
+                
+                if df.empty:
+                    info_label.config(text="No records found")
+                    return
+                
+                # Setup columns
+                data_tree['columns'] = list(df.columns)
+                data_tree['show'] = 'headings'
+                
+                for col in df.columns:
+                    data_tree.heading(col, text=col)
+                    data_tree.column(col, width=120)
+                
+                # Add data with tags
+                for idx, row in df.iterrows():
+                    values = list(row)
+                    data_tree.insert('', tk.END, values=values, tags=('record',))
+                
+                info_label.config(text=f"Showing {len(df)} records (max 500)")
+                self.add_log(f"📖 Loaded {len(df)} records from {table}")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load data:\n{str(e)}")
+                info_label.config(text="Error loading data")
+        
+        def show_form(mode='create'):
+            """Show form for creating or editing records."""
+            # Update button states to show activity
+            if mode == 'create':
+                add_btn.state(['pressed'])
+                self.root.update()
+                self.root.after(100, lambda: add_btn.state(['!pressed']))
+            else:
+                edit_btn.state(['pressed'])
+                self.root.update()
+                self.root.after(100, lambda: edit_btn.state(['!pressed']))
+            
+            # Clear form
+            for widget in form_frame.winfo_children():
+                widget.destroy()
+            
+            form_fields.clear()
+            
+            if not self.crud_columns:
+                ttk.Label(form_frame, text="⚠️ Please select a table first\n\nUse the dropdown above to choose a table", 
+                         font=('Arial', 10, 'italic'), 
+                         justify=tk.CENTER,
+                         foreground='red').pack(pady=20)
+                return
+            
+            # Get selected record for edit mode
+            selected_record = None
+            if mode == 'edit':
+                selection = data_tree.selection()
+                if not selection:
+                    messagebox.showwarning("No Selection", "Please select a record to edit")
+                    return
+                # Get values from selected row
+                values = data_tree.item(selection[0], 'values')
+                columns = data_tree['columns']
+                selected_record = dict(zip(columns, values))
+            
+            # Form title
+            title_text = "➕ Add New Record" if mode == 'create' else "✏️ Edit Record"
+            ttk.Label(form_frame, text=title_text, font=('Arial', 12, 'bold')).pack(pady=(0, 10))
+            
+            # Create form fields for each column
+            for col_info in self.crud_columns:
+                col_name = col_info['name']
+                col_type = col_info['type']
+                
+                # Field container
+                field_frame = ttk.Frame(form_frame)
+                field_frame.pack(fill=tk.X, pady=5, padx=5)
+                
+                # Label
+                label_text = f"{col_name}:"
+                if col_type:
+                    label_text += f" ({col_type})"
+                ttk.Label(field_frame, text=label_text, width=25, anchor=tk.W).pack(side=tk.LEFT, padx=5)
+                
+                # Entry field
+                var = tk.StringVar()
+                if selected_record and col_name in selected_record:
+                    var.set(str(selected_record[col_name]))
+                
+                entry = ttk.Entry(field_frame, textvariable=var, width=30)
+                entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+                
+                form_fields[col_name] = var
+            
+            # Buttons
+            button_frame = ttk.Frame(form_frame)
+            button_frame.pack(pady=15)
+            
+            if mode == 'create':
+                ttk.Button(button_frame, text="✅ Save Record", 
+                          command=lambda: save_record('create', selected_record)).pack(side=tk.LEFT, padx=5)
+            else:
+                ttk.Button(button_frame, text="✅ Update Record", 
+                          command=lambda: save_record('edit', selected_record)).pack(side=tk.LEFT, padx=5)
+            
+            ttk.Button(button_frame, text="❌ Cancel", 
+                      command=clear_form).pack(side=tk.LEFT, padx=5)
+        
+        def clear_form():
+            """Clear the form."""
+            for widget in form_frame.winfo_children():
+                widget.destroy()
+            
+            # Show helpful instructions
+            help_frame = ttk.Frame(form_frame)
+            help_frame.pack(expand=True, pady=30)
+            
+            ttk.Label(help_frame, 
+                     text="📝 Form Area", 
+                     font=('Arial', 14, 'bold')).pack(pady=10)
+            
+            ttk.Label(help_frame, 
+                     text="To add a new record:\n1. Click '➕ Add New Record' button\n2. Fill in the form fields\n3. Click Save", 
+                     font=('Arial', 10), 
+                     justify=tk.LEFT).pack(pady=5)
+            
+            ttk.Label(help_frame, 
+                     text="To edit a record:\n1. Click a row in the table\n2. Click '✏️ Edit Selected Record'\n3. Modify fields\n4. Click Update", 
+                     font=('Arial', 10), 
+                     justify=tk.LEFT).pack(pady=5)
+            
+            ttk.Label(help_frame, 
+                     text="To delete a record:\n1. Click a row in the table\n2. Click '🗑️ Delete Selected Record'\n3. Confirm deletion", 
+                     font=('Arial', 10), 
+                     justify=tk.LEFT).pack(pady=5)
+        
+        def save_record(mode, original_record=None):
+            """Save a new or updated record."""
+            table = table_var.get()
+            db_path = db_path_var.get()
+            
+            if not table:
+                messagebox.showerror("Error", "Please select a table first")
+                return
+            
+            try:
+                # Collect form data
+                record = {}
+                for col_name, var in form_fields.items():
+                    value = var.get().strip()
+                    # Convert empty strings to None
+                    if value == '':
+                        record[col_name] = None
+                    # Try to convert to numbers if possible
+                    elif value.replace('.', '', 1).replace('-', '', 1).isdigit():
+                        record[col_name] = float(value) if '.' in value else int(value)
+                    else:
+                        record[col_name] = value
+                
+                if mode == 'create':
+                    from src.crud import create_record
+                    create_record(db_path, table, record)
+                    messagebox.showinfo("Success", "Record created successfully!")
+                    self.add_log(f"➕ Created new record in {table}")
+                    self.logger.log("crud_create", f"Created record in {table}")
+                else:  # edit mode
+                    # Use pandas to update the record (simpler and more reliable)
+                    from sqlalchemy import create_engine
+                    import pandas as pd
+                    
+                    # Read all data
+                    engine = create_engine(f'sqlite:///{db_path}')
+                    df = pd.read_sql_table(table, engine)
+                    
+                    # Find the row to update by matching original values
+                    mask = pd.Series([True] * len(df))
+                    for col_name, orig_value in original_record.items():
+                        if col_name in df.columns:
+                            if orig_value == 'None' or orig_value is None or str(orig_value) == '':
+                                mask &= df[col_name].isna()
+                            else:
+                                # Convert to string for comparison
+                                mask &= (df[col_name].astype(str) == str(orig_value))
+                    
+                    if mask.sum() == 0:
+                        messagebox.showerror("Error", "Could not find the record to update. It may have been deleted.")
+                        return
+                    
+                    # Update the matching rows
+                    for col_name, new_value in record.items():
+                        if col_name in df.columns:
+                            df.loc[mask, col_name] = new_value
+                    
+                    # Save back to database
+                    df.to_sql(table, engine, if_exists='replace', index=False)
+                    
+                    messagebox.showinfo("Success", f"Updated {mask.sum()} record(s)")
+                    self.add_log(f"✏️ Updated {mask.sum()} record(s) in {table}")
+                    self.logger.log("crud_update", f"Updated {mask.sum()} records in {table}")
+                
+                load_table_data()
+                clear_form()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save record:\n{str(e)}")
+        
+        def delete_selected():
+            """Delete the selected record."""
+            # Visual feedback
+            delete_btn.state(['pressed'])
+            self.root.update()
+            self.root.after(100, lambda: delete_btn.state(['!pressed']))
+            
+            selection = data_tree.selection()
+            if not selection:
+                messagebox.showwarning("No Selection", "Please select a record from the table first,\nthen click this button to delete it.")
+                return
+            
+            table = table_var.get()
+            db_path = db_path_var.get()
+            
+            if not table:
+                return
+            
+            try:
+                # Get selected record data
+                values = data_tree.item(selection[0], 'values')
+                columns = data_tree['columns']
+                record = dict(zip(columns, values))
+                
+                # Show confirmation
+                record_preview = '\n'.join([f"  {k}: {v}" for k, v in list(record.items())[:5]])
+                if len(record) > 5:
+                    record_preview += f"\n  ... and {len(record)-5} more fields"
+                
+                if not messagebox.askyesno("⚠️ Confirm Deletion", 
+                                          f"Delete this record?\n\n{record_preview}\n\n"
+                                          "This action CANNOT be undone!",
+                                          icon='warning'):
+                    return
+                
+                # Use pandas to delete (simpler and more reliable)
+                from sqlalchemy import create_engine
+                import pandas as pd
+                
+                # Read all data
+                engine = create_engine(f'sqlite:///{db_path}')
+                df = pd.read_sql_table(table, engine)
+                
+                # Find the row to delete by matching values
+                mask = pd.Series([True] * len(df))
+                for col_name, value in record.items():
+                    if col_name in df.columns:
+                        if value == 'None' or value is None or str(value) == '':
+                            mask &= df[col_name].isna()
+                        else:
+                            # Convert to string for comparison
+                            mask &= (df[col_name].astype(str) == str(value))
+                
+                if mask.sum() == 0:
+                    messagebox.showerror("Error", "Could not find the record to delete.")
+                    return
+                
+                # Delete matching rows
+                df_updated = df[~mask]
+                
+                # Save back to database
+                df_updated.to_sql(table, engine, if_exists='replace', index=False)
+                
+                messagebox.showinfo("Deleted", f"Deleted {mask.sum()} record(s)")
+                self.add_log(f"🗑️ Deleted {mask.sum()} record(s) from {table}")
+                self.logger.log("crud_delete", f"Deleted {mask.sum()} records from {table}")
+                
+                load_table_data()
+                clear_form()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete record:\n{str(e)}")
+        
+        def show_table_info_dialog():
+            """Show table information in a dialog."""
+            # Visual feedback
+            info_btn.state(['pressed'])
+            self.root.update()
+            self.root.after(100, lambda: info_btn.state(['!pressed']))
+            
+            table = table_var.get()
+            db_path = db_path_var.get()
+            
+            if not table:
+                messagebox.showinfo("No Table", "Please select a table from the dropdown menu first.")
+                return
+            
+            try:
+                from src.crud import get_table_info
+                info = get_table_info(db_path, table)
+                
+                info_text = f"📊 TABLE INFORMATION: {table}\n"
+                info_text += "="*50 + "\n\n"
+                info_text += f"Total Rows: {info['row_count']}\n"
+                info_text += f"Total Columns: {info['column_count']}\n\n"
+                info_text += "Columns:\n"
+                info_text += "-"*50 + "\n"
+                for col in info['columns']:
+                    info_text += f"  • {col['name']}: {col['type']}\n"
+                
+                messagebox.showinfo("Table Information", info_text)
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to get table info:\n{str(e)}")
+        
+        # Configure button commands (after all functions are defined)
+        add_btn.config(command=lambda: show_form('create'))
+        edit_btn.config(command=lambda: show_form('edit'))
+        delete_btn.config(command=delete_selected)
+        refresh_btn.config(command=lambda: load_table_data())
+        info_btn.config(command=show_table_info_dialog)
+        
+        # Initialize with empty form
+        clear_form()
+        
+        # Bottom buttons
+        button_frame = ttk.Frame(main_container)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(button_frame, text="Close", command=crud_window.destroy).pack(side=tk.RIGHT, padx=5)
+        
+        # Initial load
+        refresh_tables()
+        
+        self.add_log("💾 Opened form-based database manager")
+    
+    def quick_create_record(self):
+        """Quick create record - opens main CRUD window."""
+        messagebox.showinfo(
+            "Create Record",
+            "Use the '💾 Full Database Manager' for the best experience!\n\n"
+            "The main CRUD manager provides:\n"
+            "• Easy-to-use forms (no JSON)\n"
+            "• Click to add new records\n"
+            "• Auto-generated fields\n"
+            "• Better data validation\n\n"
+            "Click OK to open it now."
+        )
+        self.open_crud_window()
+    
+    def quick_read_records(self):
+        """Quick read records - opens main CRUD window."""
+        messagebox.showinfo(
+            "View Records",
+            "Use the '💾 Full Database Manager' for the best experience!\n\n"
+            "The main CRUD manager provides:\n"
+            "• Interactive data grid\n"
+            "• Search functionality\n"
+            "• Click to view/edit records\n"
+            "• Better visualization\n\n"
+            "Click OK to open it now."
+        )
+        self.open_crud_window()
+    
+    def quick_update_record(self):
+        """Quick update record - opens main CRUD window."""
+        messagebox.showinfo(
+            "Edit Record",
+            "Use the '💾 Full Database Manager' for the best experience!\n\n"
+            "The main CRUD manager provides:\n"
+            "• Click to select record\n"
+            "• Click 'Edit Selected' button\n"
+            "• Easy-to-use forms (no JSON)\n"
+            "• Auto-populated fields\n\n"
+            "Click OK to open it now."
+        )
+        self.open_crud_window()
+    
+    def quick_delete_record(self):
+        """Quick delete record - opens main CRUD window."""
+        messagebox.showinfo(
+            "Delete Record",
+            "Use the '💾 Full Database Manager' for the best experience!\n\n"
+            "The main CRUD manager provides:\n"
+            "• Click to select record\n"
+            "• Click 'Delete Selected' button\n"
+            "• See exactly what you're deleting\n"
+            "• Safer confirmation process\n\n"
+            "Click OK to open it now."
+        )
+        self.open_crud_window()
     
     def view_activity_log(self):
         """View activity log."""

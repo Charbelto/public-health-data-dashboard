@@ -97,12 +97,12 @@ public-health-data-dashboard/
 │   └── DATA_FLOW_DIAGRAM.md             # Architecture diagrams
 ├── src/                                 # Source code
 │   ├── main.py                          # Core data loading functions
-│   ├── data_loader.py                   # DataLoader class and demonstration
 │   ├── cleaning.py                      # Data cleaning functions
-│   ├── cleaning_demo.py                 # Cleaning demonstration script
 │   ├── analysis.py                      # Data analysis and filtering
 │   ├── cli.py                           # CLI presentation layer
-│   ├── dashboard.py                     # Interactive dashboard (MAIN APP)
+│   ├── dashboard.py                     # Interactive CLI dashboard
+│   ├── gui_dashboard.py                 # Interactive GUI dashboard (MAIN APP)
+│   ├── interactive_cli.py               # Advanced CLI with CRUD
 │   ├── crud.py                          # CRUD operations for databases
 │   └── activity_logger.py               # Activity logging functionality
 ├── tests/                               # Test suite (TDD approach)
@@ -113,9 +113,7 @@ public-health-data-dashboard/
 │   └── test_activity_logger.py          # 24 activity logging tests
 ├── logs/                                # Activity logs (generated)
 ├── requirements.txt                     # Python dependencies
-├── README.md                            # This file
-├── STEP1_SUMMARY.md                     # Step 1 implementation report
-└── STEP2_SUMMARY.md                     # Step 2 implementation report
+└── README.md                            # This file
 ```
 
 ## Installation
@@ -225,105 +223,6 @@ export PYTHONPATH=$PWD && python src/dashboard.py
 
 ---
 
-### 📚 Demo Scripts - Exploring Individual Features
-
-Run these to see demonstrations of specific functionality:
-
-#### **Step 1: Data Loading Demo**
-
-Demonstrates loading data from CSV, JSON, and APIs, plus database operations.
-
-```bash
-# Windows PowerShell:
-$env:PYTHONPATH="$PWD"; python src/data_loader.py
-
-# Linux/Mac:
-export PYTHONPATH=$PWD && python src/data_loader.py
-```
-
-**What it shows:**
-- Loading vaccination data from CSV
-- Loading disease outbreak data from JSON
-- Storing data in SQLite database
-- Querying data with SQL
-- All with sample output and timing
-
-#### **Step 2: Data Cleaning Demo**
-
-Demonstrates all data cleaning capabilities with before/after comparisons.
-
-```bash
-# Windows PowerShell:
-$env:PYTHONPATH="$PWD"; python src/cleaning_demo.py
-
-# Linux/Mac:
-export PYTHONPATH=$PWD && python src/cleaning_demo.py
-```
-
-**What it shows:**
-- Detecting data quality issues (missing values, duplicates, outliers)
-- Multiple missing value handling strategies
-- Duplicate removal
-- Type conversions (dates, numerics)
-- Data validation and range filtering
-- Text standardization
-- Complete cleaning pipeline with reports
-
-#### **Step 3: Analysis Demo**
-
-Demonstrates filtering, statistics, and trend analysis features.
-
-```bash
-# Windows PowerShell:
-$env:PYTHONPATH="$PWD"; python src/analysis_demo.py
-
-# Linux/Mac:
-export PYTHONPATH=$PWD && python src/analysis_demo.py
-```
-
-**What it shows:**
-- Filtering by columns, dates, and numeric ranges
-- Summary statistics (mean, median, std, etc.)
-- Grouping and aggregation
-- Trend analysis over time
-- Moving averages
-- Multiple filter combinations
-- Export to CSV
-
-#### **Step 4: CLI Demo**
-
-Quick command-line interface demonstration.
-
-```bash
-# Windows PowerShell:
-$env:PYTHONPATH="$PWD"; python src/cli.py
-
-# Linux/Mac:
-export PYTHONPATH=$PWD && python src/cli.py
-```
-
-**What it shows:**
-- Basic CLI table formatting
-- Data display and presentation
-
-#### **Step 5: Interactive CLI (Advanced)**
-
-Full-featured interactive command-line with all CRUD operations.
-
-```bash
-# Windows PowerShell:
-$env:PYTHONPATH="$PWD"; python src/interactive_cli.py
-
-# Linux/Mac:
-export PYTHONPATH=$PWD && python src/interactive_cli.py
-```
-
-**What it shows:**
-- Complete CRUD menu
-- Database management
-- Activity log viewing
-- All interactive features
-
 ---
 
 ### 🎯 Which One Should You Run?
@@ -334,7 +233,7 @@ export PYTHONPATH=$PWD && python src/interactive_cli.py
 | **Visual analysis** | 🎨 GUI Dashboard | `$env:PYTHONPATH="$PWD"; python src/gui_dashboard.py` |
 | **Presentations** | 🎨 GUI Dashboard | `$env:PYTHONPATH="$PWD"; python src/gui_dashboard.py` |
 | **Terminal users** | 💻 CLI Dashboard | `$env:PYTHONPATH="$PWD"; python src/dashboard.py` |
-| **Learn features** | 📚 Demo Scripts | Run any `*_demo.py` script |
+| **Advanced CLI** | 💻 Interactive CLI | `$env:PYTHONPATH="$PWD"; python src/interactive_cli.py` |
 | **Automated testing** | 🧪 Test Suite | `pytest tests/ -v` |
 
 ---
@@ -647,14 +546,11 @@ Understanding what each file does and when to run it:
 | **`src/dashboard.py`** | **Full CLI Application** | Best for terminal users, automation | `$env:PYTHONPATH="$PWD"; python src/dashboard.py` |
 | **`src/interactive_cli.py`** | **Advanced CLI with CRUD** | Complete command-line experience with database operations | `$env:PYTHONPATH="$PWD"; python src/interactive_cli.py` |
 
-### 📚 Demonstration Files (Run These to Learn!)
+### 🎯 Additional Applications
 
-| **File** | **Purpose** | **What it Demonstrates** |
-|----------|------------|-------------------------|
-| **`src/data_loader.py`** | Step 1 Demo | Loading CSV, JSON, API data; database storage and queries |
-| **`src/cleaning_demo.py`** | Step 2 Demo | Data cleaning: missing values, duplicates, outliers, validation |
-| **`src/analysis_demo.py`** | Step 3 Demo | Filtering, statistics, grouping, trends, moving averages |
-| **`src/cli_demo.py`** | Step 4 Demo | Command-line table display and formatting |
+| **File** | **Purpose** | **Description** |
+|----------|------------|-----------------|
+| **`src/interactive_cli.py`** | Advanced CLI | Full CRUD operations with interactive menus |
 
 ### 🛠️ Core Library Files (Import These!)
 
@@ -696,15 +592,9 @@ These are the building blocks used by the main applications:
 | **File** | **Content** |
 |----------|------------|
 | **`README.md`** | This file - complete project documentation |
-| **`GUI_QUICK_START.md`** | Detailed GUI usage guide with screenshots and workflows |
 | **`GUI_USER_GUIDE.md`** | Comprehensive GUI documentation |
 | **`docs/API_REFERENCE.md`** | Function and API documentation |
 | **`docs/DATA_FLOW_DIAGRAM.md`** | Architecture and data flow diagrams |
-| **`STEP1_SUMMARY.md`** | Step 1 implementation report |
-| **`STEP2_SUMMARY.md`** | Step 2 implementation report |
-| **`STEP3_SUMMARY.md`** | Step 3 implementation report |
-| **`STEP4_SUMMARY.md`** | Step 4 implementation report |
-| **`STEP5_SUMMARY.md`** | Step 5 implementation report |
 
 ### 📂 Output Directories
 
@@ -720,15 +610,13 @@ These are the building blocks used by the main applications:
 **New to the project?** Follow this path:
 
 1. **Start here:** Run `python src/gui_dashboard.py` - explore the interface
-2. **Load sample data:** Click "Load Sample Vaccination Data"
+2. **Load sample data:** Click "Load CSV" and select a file from `data/`
 3. **Try features:** Filter, analyze, visualize - get comfortable
-4. **Learn Step 1:** Run `python src/data_loader.py` - see data loading
-5. **Learn Step 2:** Run `python src/cleaning_demo.py` - see data cleaning
-6. **Learn Step 3:** Run `python src/analysis_demo.py` - see analysis
-7. **Try CLI:** Run `python src/dashboard.py` - command-line interface
-8. **Run tests:** Run `pytest tests/ -v` - see comprehensive testing
-9. **Read code:** Check `src/*.py` files to understand implementation
-10. **Build something:** Use the core functions in your own scripts!
+4. **Try CLI:** Run `python src/dashboard.py` - command-line interface
+5. **Advanced features:** Run `python src/interactive_cli.py` - CRUD operations
+6. **Run tests:** Run `pytest tests/ -v` - see comprehensive testing
+7. **Read code:** Check `src/*.py` files to understand implementation
+8. **Build something:** Use the core functions in your own scripts!
 
 ---
 

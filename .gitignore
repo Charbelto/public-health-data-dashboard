@@ -73,9 +73,15 @@ logs/*.log
 *.swo
 *~
 
-# Output files (optional - uncomment if you don't want to track outputs)
-# outputs/*.png
-# outputs/*.csv
+# Output files
+outputs/*.png
+outputs/*.csv
+
+# Step summaries (development artifacts)
+STEP*_SUMMARY.md
+
+# Temporary exports
+export.csv
 
 # Environment files
 .env

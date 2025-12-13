@@ -565,6 +565,43 @@ The `load_from_api()` function supports integration with real public health APIs
 - European CDC API
 - Our World in Data API
 
+## 🤖 Continuous Integration (CI)
+
+This project uses **GitHub Actions** for automated testing on every push and pull request.
+
+### Quick Setup
+
+**Windows:**
+```powershell
+.\setup_github_actions.ps1
+```
+
+**Linux/Mac:**
+```bash
+chmod +x setup_github_actions.sh
+./setup_github_actions.sh
+```
+
+### What Gets Tested Automatically
+
+- ✅ **129 tests** run on every push
+- ✅ **3 Operating Systems**: Ubuntu, Windows, macOS
+- ✅ **3 Python Versions**: 3.10, 3.11, 3.12
+- ✅ **Code Coverage**: Reports generated automatically
+- ✅ **Code Quality**: Linting with flake8, black, pylint
+
+### CI Workflows
+
+1. **Full Test Suite** (`.github/workflows/tests.yml`) - Comprehensive testing across 9 configurations
+2. **Quick Test** (`.github/workflows/quick-test.yml`) - Fast feedback in ~2 minutes
+3. **Linting** (`.github/workflows/lint.yml`) - Code quality checks
+
+**📖 Complete Guide:** See `GITHUB_ACTIONS_SETUP.md` for detailed setup instructions.
+
+**⚡ Quick Start:** See `QUICK_START_CI.md` for 5-minute setup.
+
+---
+
 ## Testing Strategy
 
 The test suite covers:

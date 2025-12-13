@@ -25,10 +25,14 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         pytest tests/ -v --tb=short -x
 
     - name: Test imports
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         python -c "from src import main, cleaning, analysis, crud, activity_logger"
         echo "✅ All modules import successfully"

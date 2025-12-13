@@ -27,22 +27,30 @@ jobs:
 
     - name: Run flake8
       continue-on-error: true
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Check code formatting with black
       continue-on-error: true
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         black --check src/ tests/
 
     - name: Check import sorting with isort
       continue-on-error: true
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         isort --check-only src/ tests/
 
     - name: Run pylint
       continue-on-error: true
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         pylint src/ --disable=C0111,R0913,R0914 --max-line-length=127 || true
 

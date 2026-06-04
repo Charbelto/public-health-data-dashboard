@@ -636,3 +636,17 @@ This project is for educational purposes as part of a university coursework assi
 - ✅ **Step 3**: Filtering and Summary Views - **COMPLETE** (29 tests)
 - ✅ **Step 4**: Presentation Layer (CLI) - **COMPLETE**
 - ✅ **Step 5**: Extension Features - **COMPLETE** (51 tests: 27 CRUD + 24 Logging)
+
+
+---
+
+## 🛠️ System Architecture
+
+```mermaid
+graph TD
+    A[Public Health Data APIs / CSV Datasets] --> B[Pandas Data Cleansing & Merging]
+    B --> C[Infection & Vaccination Trend Calculations]
+    C --> D[Choropleth Heatmap Data Generation]
+    D --> E[Streamlit Dashboard Rendering]
+    E --> F[Interactive Filters & Plots (Plotly/Altair)]
+```

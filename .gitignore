@@ -126,3 +126,12 @@ REPORT_READY.md
 README_REPORT_SUBMISSION.md
 QUICK_START_REPORT.md
 FINAL_INSTRUCTIONS.md
+
+# Additional polish rules
+# .NET standard gitignore
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+.vs/
